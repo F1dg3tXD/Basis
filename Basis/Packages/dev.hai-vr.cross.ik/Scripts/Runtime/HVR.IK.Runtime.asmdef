@@ -3,9 +3,6 @@
     "rootNamespace": "",
     "references": [
         "Unity.Mathematics",
-        "LiteNetLib",
-        "Unity.Addressables",
-        "Unity.ResourceManager",
         "Unity.Animation.Rigging",
         "Unity.Burst"
     ],

@@ -128,8 +128,21 @@ namespace Basis.Scripts.Drivers
             {
                 Rig.OnInitialize();
             }
+            player.LocalRigDriver.HIKFullTiger = BasisHelpers.GetOrAddComponent<HIKFullTiger>(AvatarAnimatorParent);
             player.LocalRigDriver.HIKEffectors = BasisHelpers.GetOrAddComponent<HIKEffectors>(AvatarAnimatorParent);
+
+
+            player.LocalRigDriver.HIKFullTiger.animator = player.BasisAvatar.Animator;
+            player.LocalRigDriver.HIKFullTiger.effectors = player.LocalRigDriver.HIKEffectors;
+            player.LocalRigDriver.HIKFullTiger.useJobSystem = true;
+            player.LocalRigDriver.HIKFullTiger.updateEveryFrame = true;
+            player.LocalRigDriver.HIKFullTiger.updateInLateUpdate = true;
+            player.LocalRigDriver.HIKFullTiger.useLookupTables = true;
+            player.LocalRigDriver.HIKEffectors.useDirectDrive = true;
             player.LocalRigDriver.HIKEffectors.animator = player.BasisAvatar.Animator;
+
+            player.LocalRigDriver.HIKFullTiger.Initalize();
+            player.LocalRigDriver.HIKEffectors.Initalize();
 
             Calibration(player);
 
@@ -188,7 +201,7 @@ namespace Basis.Scripts.Drivers
             {
                 AddJiggleRigColliders(References);
             }
-          //  player.LocalRigDriver.HIKEffectors.Initalize();
+            //  player.LocalRigDriver.HIKEffectors.Initalize();
         }
         /// <summary>
         /// Restores the head scale to its cached normal value if currently hidden/zeroed.

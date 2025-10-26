@@ -73,9 +73,9 @@ namespace HVR.IK.FullTiger
         private static readonly HumanBodyBones[] LeftArmChain = { LeftShoulder, LeftUpperArm, LeftLowerArm, LeftHand };
         private static readonly HumanBodyBones[] RightArmChain = { RightShoulder, RightUpperArm, RightLowerArm, RightHand };
         
-        [SerializeField] internal Animator animator;
-        [SerializeField] internal HIKEffectors effectors;
-        [SerializeField] internal HIKEnvironmental environmental;
+        public Animator animator;
+        public HIKEffectors effectors;
+        public HIKEnvironmental environmental;
         
         private HIKAvatarDefinition definition = new();
         private HIKSolver _ikSolver;
@@ -107,7 +107,7 @@ namespace HVR.IK.FullTiger
         private JobHandle _jobHandle;
         private NativeArray<HIKSnapshot> _result;
 
-        private void Awake()
+        public void Initalize()
         {
             definition = SolveDefinition(animator, definition, _bones);
             
@@ -115,7 +115,7 @@ namespace HVR.IK.FullTiger
             _ikSolver = new HIKSolver(definition, new HIKLookupTables(ParseLookup()));
         }
 
-        private List<float3> ParseLookup()
+        internal static List<float3> ParseLookup()
         {
             // FIXME: The asset may not be available in a built app because it's not referenced
             var lookupTable = AssetDatabase.LoadAssetByGUID<TextAsset>(new GUID("dad70e4f1a7437a43b2cd4b25a877c67")); // This guid is arm_bend_lookup_table.txt
@@ -312,8 +312,8 @@ namespace HVR.IK.FullTiger
         private HIKObjective CreateObjective()
         {
             Profiler.BeginSample("HIK Collect Transforms HIKObjective");
-            float3 headTargetWorldPosition = effectors.headTarget.position;
-            quaternion headTargetWorldRotation = effectors.headTarget.rotation;
+            float3 headTargetWorldPosition = effectors.useDirectDrive ? effectors.headWorldPosition : effectors.headTarget.position;
+            quaternion headTargetWorldRotation = effectors.useDirectDrive ? effectors.headWorldRotation : effectors.headTarget.rotation;
             
             var needsEnvironmental = environmental != null && effectors.useHipsFromEnvironmental > 0;
 
@@ -459,6 +459,8 @@ namespace HVR.IK.FullTiger
                 chestTargetWorldPosition = chestTargetWorldPosition,
                 chestTargetWorldRotation = chestTargetWorldRotation,
                 alsoUseChestToMoveNeck = effectors.alsoUseChestToMoveNeck,
+                
+                chestRotationUsesHead = effectors.chestRotationUsesHead,
                 
                 useLeftLowerArm = effectors.useLeftLowerArm,
                 leftLowerArmWorldPosition = leftLowerArmWorldPosition,

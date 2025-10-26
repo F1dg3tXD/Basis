@@ -23,7 +23,7 @@ namespace HVR.IK.FullTiger
     /// The end effectors placements should be modified by external modules before the IK solver runs.
     public class HIKEffectors : MonoBehaviour
     {
-        [SerializeField] public Animator animator;
+        public Animator animator;
 
         [Header("Classic effectors")]
         public Transform runtimeTargets;
@@ -106,6 +106,8 @@ namespace HVR.IK.FullTiger
         public bool useDirectDrive = false;
         [HideInInspector] public float3 hipWorldPosition;
         [HideInInspector] public quaternion hipWorldRotation;
+        [HideInInspector] public float3 headWorldPosition;
+        [HideInInspector] public quaternion headWorldRotation;
         [HideInInspector] public float3 leftHandWorldPosition;
         [HideInInspector] public quaternion leftHandWorldRotation;
         [HideInInspector] public float3 rightHandWorldPosition;
@@ -131,7 +133,7 @@ namespace HVR.IK.FullTiger
         public bool IsInitialized() => _isInitialized;
         private bool _isInitialized;
 
-        private void OnEnable()
+        public void Initalize()
         {
             if (!useDirectDrive)
             {
@@ -148,10 +150,10 @@ namespace HVR.IK.FullTiger
                 if (null == chestTarget) chestTarget = CreateTarget(HumanBodyBones.Chest, "ChestTarget");
                 if (null == leftLowerArmTarget) leftLowerArmTarget = CreateTarget(HumanBodyBones.Chest, "LeftLowerArmTarget");
                 if (null == rightLowerArmTarget) rightLowerArmTarget = CreateTarget(HumanBodyBones.Chest, "RightLowerArmTarget");
-            }
 
-            _tPosePos = AllTargetsStartingWithHead().Select(t => t.position).ToArray();
-            _tPoseRot = AllTargetsStartingWithHead().Select(t => t.rotation).ToArray();
+                _tPosePos = AllTargetsStartingWithHead().Select(t => t.position).ToArray();
+                _tPoseRot = AllTargetsStartingWithHead().Select(t => t.rotation).ToArray();
+            }
             
             _isInitialized = true;
         }
