@@ -21,61 +21,11 @@ namespace Basis.Scripts.Drivers
     {
         public HIKFullTiger HIKFullTiger;
         public HIKEffectors HIKEffectors;
-        /// <summary>
-        /// Minimum cutoff for the One Euro filter. Lower = smoother; higher = more responsive.
-        /// </summary>
-        [Header("Smoothing (One Euro Filter)")]
-        [Tooltip("Lower = more smoothing; Higher = more responsive.")]
-        [Range(0.01f, 10f)]
-        public float MinCutoff = 5.5f;
-
-        /// <summary>
-        /// Beta term for the One Euro filter: raises cutoff during fast motion to reduce lag.
-        /// </summary>
-        [Tooltip("How much to raise cutoff when motion is fast (reduces lag during quick moves).")]
-        [Range(0f, 10f)]
-        public float Beta = 3.25f;
-
-        /// <summary>
-        /// Cutoff for derivative smoothing in the One Euro filter.
-        /// </summary>
-        [Tooltip("Cutoff for derivative smoothing.")]
-        [Range(0.01f, 10f)]
-        public float DerivativeCutoff = 3f;
 
         /// <summary>Owning local player instance.</summary>
         private BasisLocalPlayer localPlayer;
         /// <summary>Bone reference mapping (hips, chest, hands, etc.).</summary>
         private BasisTransformMapping references;
-
-        // === Per-role smoothers ===
-
-        /// <summary>Position filters per tracked role (One Euro).</summary>
-        private readonly Dictionary<BasisBoneTrackedRole, OneEuroFilterVector3> posFilters = new();
-        /// <summary>Rotation filters per tracked role (One Euro).</summary>
-        private readonly Dictionary<BasisBoneTrackedRole, OneEuroFilterQuaternion> rotFilters = new();
-
-        /// <summary>Monotonic time accumulator for filter evaluation.</summary>
-        private float _timeAccumulator;
-
-        /// <summary>
-        /// Fetches or creates a One Euro position filter for a specific role
-        /// and keeps its parameters in sync with the public fields.
-        /// </summary>
-        private OneEuroFilterVector3 GetPosFilter(BasisBoneTrackedRole role)
-        {
-            if (!posFilters.TryGetValue(role, out var f))
-            {
-                f = new OneEuroFilterVector3(MinCutoff, Beta, DerivativeCutoff);
-                posFilters[role] = f;
-            }
-            else
-            {
-                // keep runtime params in sync if adjusted at runtime
-                f.minCutoff = MinCutoff; f.beta = Beta; f.dCutoff = DerivativeCutoff;
-            }
-            return f;
-        }
 
         /// <summary>
         /// Initializes the rig driver with a local player and bone references.
@@ -86,7 +36,6 @@ namespace Basis.Scripts.Drivers
         {
             this.localPlayer = localPlayer;
             this.references = references;
-            _timeAccumulator = 0f;
         }
 
         /// <summary>
@@ -96,61 +45,39 @@ namespace Basis.Scripts.Drivers
         /// <param name="DeltaTime">Simulation delta time.</param>
         public void SimulateIKDestinations(float DeltaTime)
         {
-            _timeAccumulator += Mathf.Max(DeltaTime, 1e-6f);
 
-            // --- IK Target ---
-            // Spine (hips + head targets come from calibrated coords)
-            var hipsCoords = BasisLocalBoneDriver.HipsControl.OutgoingWorldData;
+            //HipsControl.OutgoingWorldData is the position relative the the parent. (BasisLocalPlayer) essentially .position / .rotation of a transform
+            //TposeLocalScaled accounts for the tpose where the position is scaled by the avatars selected height. this is how we resize on the fly correctly.
+            var HIKEffectors = BasisLocalPlayer.Instance.LocalRigDriver.HIKEffectors;
 
-            var hipsPos = GetPosFilter(BasisBoneTrackedRole.Hips).Filter(hipsCoords.position, _timeAccumulator);
-            // var hipsRot = GetRotFilter(BasisBoneTrackedRole.Hips).Filter(hipsCoords.rotation, _timeAccumulator);
+            HIKEffectors.hipWorldPosition = BasisLocalBoneDriver.HipsControl.OutgoingWorldData.position;
+            HIKEffectors.hipWorldRotation = BasisLocalBoneDriver.HipsControl.OutgoingWorldData.rotation * Quaternion.Inverse(BasisLocalBoneDriver.HipsControl.TposeLocalScaled.rotation);
 
-            //  ApplySpineIKTarget(
-            //    new BasisCalibratedCoords
-            //    {
-            //       position = hipsPos,
-            //       rotation = hipsCoords.rotation
-            //   }
-            //   );
+            HIKEffectors.chestTargetWorldPosition = BasisLocalBoneDriver.ChestControl.OutgoingWorldData.position;
+            HIKEffectors.chestTargetWorldRotation = BasisLocalBoneDriver.ChestControl.OutgoingWorldData.rotation * Quaternion.Inverse(BasisLocalBoneDriver.ChestControl.TposeLocalScaled.rotation);
 
-            // Direction for knee/neck hints relative to hips orientation (unchanged)
-            Vector3 Direction = BasisLocalBoneDriver.HipsControl.OutgoingWorldData.rotation * Vector3.right;
+            HIKEffectors.headWorldPosition = BasisLocalBoneDriver.HeadControl.OutgoingWorldData.position;
+            HIKEffectors.headWorldRotation = BasisLocalBoneDriver.HeadControl.OutgoingWorldData.rotation * Quaternion.Inverse(BasisLocalBoneDriver.HeadControl.TposeLocalScaled.rotation);
+
+            HIKEffectors.leftHandWorldPosition = BasisLocalBoneDriver.LeftHandControl.OutgoingWorldData.position;
+            HIKEffectors.leftHandWorldRotation = BasisLocalBoneDriver.LeftHandControl.OutgoingWorldData.rotation * Quaternion.Inverse(BasisLocalBoneDriver.LeftHandControl.TposeLocalScaled.rotation);
+
+            HIKEffectors.rightHandWorldPosition = BasisLocalBoneDriver.RightHandControl.OutgoingWorldData.position;
+            HIKEffectors.rightHandWorldRotation = BasisLocalBoneDriver.RightHandControl.OutgoingWorldData.rotation * Quaternion.Inverse(BasisLocalBoneDriver.RightHandControl.TposeLocalScaled.rotation);
+
+            HIKEffectors.rightFootWorldPosition = BasisLocalBoneDriver.RightFootControl.OutgoingWorldData.position;
+            HIKEffectors.rightFootWorldRotation = BasisLocalBoneDriver.RightFootControl.OutgoingWorldData.rotation * Quaternion.Inverse(BasisLocalBoneDriver.RightFootControl.TposeLocalScaled.rotation);
+
+            HIKEffectors.leftFootWorldPosition = BasisLocalBoneDriver.LeftFootControl.OutgoingWorldData.position;
+            HIKEffectors.leftFootWorldRotation = BasisLocalBoneDriver.LeftFootControl.OutgoingWorldData.rotation * Quaternion.Inverse(BasisLocalBoneDriver.LeftFootControl.TposeLocalScaled.rotation);
+
+            HIKEffectors.rightLowerArmWorldPosition = BasisLocalBoneDriver.RightLowerArmControl.OutgoingWorldData.position;
+            HIKEffectors.rightLowerArmWorldRotation = BasisLocalBoneDriver.RightLowerArmControl.OutgoingWorldData.rotation * Quaternion.Inverse(BasisLocalBoneDriver.RightLowerArmControl.TposeLocalScaled.rotation);
+
+            HIKEffectors.leftLowerArmWorldPosition = BasisLocalBoneDriver.LeftLowerArmControl.OutgoingWorldData.position;
+            HIKEffectors.leftLowerArmWorldRotation = BasisLocalBoneDriver.LeftLowerArmControl.OutgoingWorldData.rotation * Quaternion.Inverse(BasisLocalBoneDriver.LeftLowerArmControl.TposeLocalScaled.rotation);
+
         }
-
-        /// <summary>
-        /// Maps a tracked role to its outgoing world-space calibrated coordinates from the local bone driver.
-        /// </summary>
-        private BasisCalibratedCoords GetCoordsForRole(BasisBoneTrackedRole role)
-        {
-            // Map roles to driver controls
-            switch (role)
-            {
-                case BasisBoneTrackedRole.Head: return BasisLocalBoneDriver.HeadControl.OutgoingWorldData;
-                case BasisBoneTrackedRole.Hips: return BasisLocalBoneDriver.HipsControl.OutgoingWorldData;
-
-                case BasisBoneTrackedRole.LeftHand: return BasisLocalBoneDriver.LeftHandControl.OutgoingWorldData;
-                case BasisBoneTrackedRole.RightHand: return BasisLocalBoneDriver.RightHandControl.OutgoingWorldData;
-
-                case BasisBoneTrackedRole.LeftLowerArm: return BasisLocalBoneDriver.LeftLowerArmControl.OutgoingWorldData;
-                case BasisBoneTrackedRole.RightLowerArm: return BasisLocalBoneDriver.RightLowerArmControl.OutgoingWorldData;
-
-                case BasisBoneTrackedRole.LeftFoot: return BasisLocalBoneDriver.LeftFootControl.OutgoingWorldData;
-                case BasisBoneTrackedRole.RightFoot: return BasisLocalBoneDriver.RightFootControl.OutgoingWorldData;
-
-                case BasisBoneTrackedRole.LeftLowerLeg: return BasisLocalBoneDriver.LeftLowerLegControl.OutgoingWorldData;
-                case BasisBoneTrackedRole.RightLowerLeg: return BasisLocalBoneDriver.RightLowerLegControl.OutgoingWorldData;
-
-                case BasisBoneTrackedRole.LeftToes: return BasisLocalBoneDriver.LeftToeControl.OutgoingWorldData;
-                case BasisBoneTrackedRole.RightToes: return BasisLocalBoneDriver.RightToeControl.OutgoingWorldData;
-
-                case BasisBoneTrackedRole.Chest: return BasisLocalBoneDriver.ChestControl.OutgoingWorldData;
-
-                default:
-                    // Fallback: return identity to avoid null ref
-                    return new BasisCalibratedCoords { position = Vector3.zero, rotation = Quaternion.identity };
-            }
-        }
-
         /// <summary>
         /// Builds the rig's playable graph from the animator and switches the graph to manual update mode.
         /// </summary>

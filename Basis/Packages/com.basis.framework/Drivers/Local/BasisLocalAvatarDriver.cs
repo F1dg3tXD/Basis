@@ -139,6 +139,13 @@ namespace Basis.Scripts.Drivers
             player.LocalRigDriver.HIKFullTiger.updateInLateUpdate = true;
             player.LocalRigDriver.HIKFullTiger.useLookupTables = true;
             player.LocalRigDriver.HIKEffectors.useDirectDrive = true;
+
+
+            player.LocalRigDriver.HIKEffectors.useShoulder = 1;
+            player.LocalRigDriver.HIKEffectors.useChest = 1;
+            player.LocalRigDriver.HIKEffectors.useLeftLowerArm = 1;
+            player.LocalRigDriver.HIKEffectors.useRightLowerArm = 1;
+
             player.LocalRigDriver.HIKEffectors.animator = player.BasisAvatar.Animator;
 
             player.LocalRigDriver.HIKFullTiger.Initalize();
