@@ -134,13 +134,7 @@ namespace Basis.Scripts.Drivers
 
             player.LocalRigDriver.HIKFullTiger.animator = player.BasisAvatar.Animator;
             player.LocalRigDriver.HIKFullTiger.effectors = player.LocalRigDriver.HIKEffectors;
-            player.LocalRigDriver.HIKFullTiger.useJobSystem = true;
-            player.LocalRigDriver.HIKFullTiger.updateEveryFrame = true;
-            player.LocalRigDriver.HIKFullTiger.updateInLateUpdate = true;
             player.LocalRigDriver.HIKFullTiger.useLookupTables = true;
-            player.LocalRigDriver.HIKEffectors.useDirectDrive = true;
-
-
             player.LocalRigDriver.HIKEffectors.useShoulder = 1;
             player.LocalRigDriver.HIKEffectors.useChest = 1;
             player.LocalRigDriver.HIKEffectors.useLeftLowerArm = 1;
@@ -562,16 +556,16 @@ namespace Basis.Scripts.Drivers
         public void SetInitialData(Transform Transform, BasisLocalBoneControl bone, BasisBoneTrackedRole Role, Vector3 WorldTpose)
         {
             bone.OutGoingData.position = BasisLocalBoneDriver.ConvertToAvatarSpaceInitial(Transform, WorldTpose);
+            bone.OutGoingData.rotation = Transform.rotation;
+
             bone.TposeLocal.position = bone.OutGoingData.position;
+
             bone.TposeLocal.rotation = bone.OutGoingData.rotation;
+
             if (IsApartOfSpineVertical(Role))
             {
                 bone.OutGoingData.position = new Vector3(0, bone.OutGoingData.position.y, bone.OutGoingData.position.z);
                 bone.TposeLocal.position = bone.OutGoingData.position;
-            }
-            if (Role == BasisBoneTrackedRole.Hips)
-            {
-                bone.TposeLocal.rotation = quaternion.identity;
             }
             bone.TposeLocalScaled.position = bone.TposeLocal.position;
             bone.TposeLocalScaled.rotation = bone.TposeLocal.rotation;

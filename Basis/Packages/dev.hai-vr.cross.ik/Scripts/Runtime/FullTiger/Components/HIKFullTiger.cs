@@ -31,18 +31,15 @@ namespace HVR.IK.FullTiger
         public Animator animator;
         public HIKEffectors effectors;
         public HIKEnvironmental environmental;
-        public bool updateInLateUpdate = false;
-        public bool useJobSystem = false;
-        public bool updateEveryFrame = true;
         public bool overrideDefaultFabrikIterationCount = false;
         public int fabrikIterations = HIKSpineSolver.Iterations;
         public bool useLookupTables = true;
         public bool debugDrawFinalChains = true;
         public bool debugDrawSolver = true;
         public HIKDebugDrawFlags debugDrawFlags = (HIKDebugDrawFlags)int.MaxValue;
-        
         private HIKFullTigerHandler _handler;
-
+        public bool IsInitalized = false;
+        public bool ScheduledWorked = false;
         public void Initalize()
         {
             _handler = new HIKFullTigerHandler
@@ -57,50 +54,33 @@ namespace HVR.IK.FullTiger
                 debugDrawFlags = debugDrawFlags,
             };
             _handler.SolveDefinitionAndBones(animator);
+            IsInitalized = true;
         }
 
-        private void Update()
+        public void DriveUpdate()
         {
-            if (!updateEveryFrame) return;
-            
-            // TODO: Detect changes?
-            _handler.effectors = effectors;
-            _handler.environmental = environmental;
-            _handler.overrideDefaultFabrikIterationCount = overrideDefaultFabrikIterationCount;
-            _handler.fabrikIterations = fabrikIterations;
-            _handler.useLookupTables = useLookupTables;
-            _handler.debugDrawFinalChains = debugDrawFinalChains;
-            _handler.debugDrawSolver = debugDrawSolver;
-            _handler.debugDrawFlags = debugDrawFlags;
-            
-            if (useJobSystem)
+            if (IsInitalized)
             {
+                // TODO: Detect changes?
+                _handler.effectors = effectors;
+                _handler.environmental = environmental;
+                _handler.overrideDefaultFabrikIterationCount = overrideDefaultFabrikIterationCount;
+                _handler.fabrikIterations = fabrikIterations;
+                _handler.useLookupTables = useLookupTables;
+                _handler.debugDrawFinalChains = debugDrawFinalChains;
+                _handler.debugDrawSolver = debugDrawSolver;
+                _handler.debugDrawFlags = debugDrawFlags;
+
                 _handler.PerformRegularSolveInJobSystem();
-            }
-            else
-            {
-                if (!updateInLateUpdate)
-                {
-                    _handler.ExecuteSolver();
-                }
+                ScheduledWorked = true;
             }
         }
-
-        private void LateUpdate()
+        public void DriveLateUpdate()
         {
-            if (!updateEveryFrame) return;
-            
-            if (useJobSystem)
+            if (ScheduledWorked)
             {
                 _handler.CompleteJob();
                 _handler.ApplySnapshot();
-            }
-            else
-            {
-                if (updateInLateUpdate)
-                {
-                    _handler.ExecuteSolver();
-                }
             }
         }
     }
@@ -388,8 +368,8 @@ namespace HVR.IK.FullTiger
         private HIKObjective CreateObjective()
         {
             Profiler.BeginSample("HIK Collect Transforms HIKObjective");
-            float3 headTargetWorldPosition = effectors.useDirectDrive ? effectors.headWorldPosition : effectors.headTarget.position;
-            quaternion headTargetWorldRotation = effectors.useDirectDrive ? effectors.headWorldRotation : effectors.headTarget.rotation;
+            float3 headTargetWorldPosition = effectors.headWorldPosition;
+            quaternion headTargetWorldRotation = effectors.headWorldRotation;
             
             var needsEnvironmental = environmental != null && effectors.useHipsFromEnvironmental > 0;
 
@@ -425,52 +405,26 @@ namespace HVR.IK.FullTiger
             quaternion groundedStraddlingLeftLegWorldRotation;
             float3 groundedStraddlingRightLegWorldPosition;
             quaternion groundedStraddlingRightLegWorldRotation;
-            if (effectors.useDirectDrive)
-            {
-                hipTargetWorldPosition = effectors.hipWorldPosition;
-                hipTargetWorldRotation = effectors.hipWorldRotation;
-                leftHandTargetWorldPosition = effectors.leftHandWorldPosition;
-                leftHandTargetWorldRotation = effectors.leftHandWorldRotation;
-                rightHandTargetWorldPosition = effectors.rightHandWorldPosition;
-                rightHandTargetWorldRotation = effectors.rightHandWorldRotation;
-                leftFootTargetWorldPosition = effectors.leftFootWorldPosition;
-                leftFootTargetWorldRotation = effectors.leftFootWorldRotation;
-                rightFootTargetWorldPosition = effectors.rightFootWorldPosition;
-                rightFootTargetWorldRotation = effectors.rightFootWorldRotation;
-                chestTargetWorldPosition = effectors.chestTargetWorldPosition;
-                chestTargetWorldRotation = effectors.chestTargetWorldRotation;
-                leftLowerArmWorldPosition = effectors.leftLowerArmWorldPosition;
-                leftLowerArmWorldRotation = effectors.leftLowerArmWorldRotation;
-                rightLowerArmWorldPosition = effectors.rightLowerArmWorldPosition;
-                rightLowerArmWorldRotation = effectors.rightLowerArmWorldRotation;
-                groundedStraddlingLeftLegWorldPosition = effectors.groundedStraddlingLeftLegWorldPosition;
-                groundedStraddlingLeftLegWorldRotation = effectors.groundedStraddlingLeftLegWorldRotation;
-                groundedStraddlingRightLegWorldPosition = effectors.groundedStraddlingRightLegWorldPosition;
-                groundedStraddlingRightLegWorldRotation = effectors.groundedStraddlingRightLegWorldRotation;
-            }
-            else
-            {
-                hipTargetWorldPosition = effectors.hipTarget.position;
-                hipTargetWorldRotation = effectors.hipTarget.rotation;
-                leftHandTargetWorldPosition = effectors.leftHandTarget.position;
-                leftHandTargetWorldRotation = effectors.leftHandTarget.rotation;
-                rightHandTargetWorldPosition = effectors.rightHandTarget.position;
-                rightHandTargetWorldRotation = effectors.rightHandTarget.rotation;
-                leftFootTargetWorldPosition = effectors.leftFootTarget.position;
-                leftFootTargetWorldRotation = effectors.leftFootTarget.rotation;
-                rightFootTargetWorldPosition = effectors.rightFootTarget.position;
-                rightFootTargetWorldRotation = effectors.rightFootTarget.rotation;
-                chestTargetWorldPosition = effectors.useChest > 0f ? effectors.chestTarget.position : float3.zero;
-                chestTargetWorldRotation = effectors.useChest > 0f ? effectors.chestTarget.rotation : quaternion.identity;
-                leftLowerArmWorldPosition = effectors.useLeftLowerArm > 0f ? effectors.leftLowerArmTarget.position : float3.zero;
-                leftLowerArmWorldRotation = effectors.useLeftLowerArm > 0f ? effectors.leftLowerArmTarget.rotation : quaternion.identity;
-                rightLowerArmWorldPosition = effectors.useRightLowerArm > 0f ? effectors.rightLowerArmTarget.position : float3.zero;
-                rightLowerArmWorldRotation = effectors.useRightLowerArm > 0f ? effectors.rightLowerArmTarget.rotation : quaternion.identity;
-                groundedStraddlingLeftLegWorldPosition = effectors.useStraddlingLeftLeg ? effectors.groundedStraddlingLeftLeg.position : float3.zero;
-                groundedStraddlingLeftLegWorldRotation = effectors.useStraddlingLeftLeg ? effectors.groundedStraddlingLeftLeg.rotation : quaternion.identity;
-                groundedStraddlingRightLegWorldPosition = effectors.useStraddlingRightLeg ? effectors.groundedStraddlingRightLeg.position : float3.zero;
-                groundedStraddlingRightLegWorldRotation = effectors.useStraddlingRightLeg ? effectors.groundedStraddlingRightLeg.rotation : quaternion.identity;
-            }
+            hipTargetWorldPosition = effectors.hipWorldPosition;
+            hipTargetWorldRotation = effectors.hipWorldRotation;
+            leftHandTargetWorldPosition = effectors.leftHandWorldPosition;
+            leftHandTargetWorldRotation = effectors.leftHandWorldRotation;
+            rightHandTargetWorldPosition = effectors.rightHandWorldPosition;
+            rightHandTargetWorldRotation = effectors.rightHandWorldRotation;
+            leftFootTargetWorldPosition = effectors.leftFootWorldPosition;
+            leftFootTargetWorldRotation = effectors.leftFootWorldRotation;
+            rightFootTargetWorldPosition = effectors.rightFootWorldPosition;
+            rightFootTargetWorldRotation = effectors.rightFootWorldRotation;
+            chestTargetWorldPosition = effectors.chestTargetWorldPosition;
+            chestTargetWorldRotation = effectors.chestTargetWorldRotation;
+            leftLowerArmWorldPosition = effectors.leftLowerArmWorldPosition;
+            leftLowerArmWorldRotation = effectors.leftLowerArmWorldRotation;
+            rightLowerArmWorldPosition = effectors.rightLowerArmWorldPosition;
+            rightLowerArmWorldRotation = effectors.rightLowerArmWorldRotation;
+            groundedStraddlingLeftLegWorldPosition = effectors.groundedStraddlingLeftLegWorldPosition;
+            groundedStraddlingLeftLegWorldRotation = effectors.groundedStraddlingLeftLegWorldRotation;
+            groundedStraddlingRightLegWorldPosition = effectors.groundedStraddlingRightLegWorldPosition;
+            groundedStraddlingRightLegWorldRotation = effectors.groundedStraddlingRightLegWorldRotation;
 
             if (needsEnvironmental)
             {

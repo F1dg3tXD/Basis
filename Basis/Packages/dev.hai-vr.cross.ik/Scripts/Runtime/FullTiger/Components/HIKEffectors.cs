@@ -25,22 +25,13 @@ namespace HVR.IK.FullTiger
     {
         public Animator animator;
 
-        [Header("Classic effectors")]
-        public Transform runtimeTargets;
-        public Transform hipTarget;
-        public Transform headTarget;
-        public Transform leftHandTarget;
-        public Transform rightHandTarget;
-        public Transform leftFootTarget;
-        public Transform rightFootTarget;
-        
         [Header("Spine")]
         public bool hipPositionMattersMore;
         public bool contortionist;
         public bool doNotPreserveHipsToNeckCurvatureLimit;
         [Range(0, 1)]
         public float improveSpineBuckling = 1f;
-        
+
         [Header("Automatic Chest")]
         [Range(0, 1)]
         public float chestRotationUsesHead = 0f;
@@ -48,24 +39,21 @@ namespace HVR.IK.FullTiger
         [Header("Chest effector")]
         [Range(0, 1)]
         public float useChest;
-        public Transform chestTarget;
         [Range(0, 1)]
         public float alsoUseChestToMoveNeck;
-        
+
         [Header("Arm bend")]
         [Range(0, 1)]
         public float useLeftLowerArm;
-        public Transform leftLowerArmTarget;
         [Range(0, 1)]
         public float useRightLowerArm;
-        public Transform rightLowerArmTarget;
-        
+
         [Header("Struggle")]
         public float legStruggleStart = HIKObjective.StruggleStart;
         public float legStruggleEnd = HIKObjective.StruggleEnd;
         public float armStruggleStart = HIKObjective.StruggleStart;
         public float armStruggleEnd = HIKObjective.StruggleEnd;
-        
+
         [Header("Shoulder")]
         [Range(0, 1)]
         public float useShoulder = 0f;
@@ -73,146 +61,63 @@ namespace HVR.IK.FullTiger
         public float shoulderForwardAngleMultiplier = 1f;
         [Range(0, 1)]
         public float shoulderUpwardAngleMultiplier = 1f;
-        
+
         [Header("Straddling")]
         public bool useStraddlingLeftLeg;
-        public Transform groundedStraddlingLeftLeg;
         public bool useStraddlingRightLeg;
-        public Transform groundedStraddlingRightLeg;
-        
+
         [Header("Self-parenting, Left Hand")]
         [Range(0, 1)]
         public float useSelfParentLeftHand;
         public HumanBodyBones selfParentLeftHandBone;
         public float3 selfParentLeftHandRelativePosition;
         public float3 selfParentLeftHandRelativeRotationEuler;
-        
+
         [Header("Self-parenting, Right Hand")]
         [Range(0, 1)]
         public float useSelfParentRightHand;
         public HumanBodyBones selfParentRightHandBone;
         public float3 selfParentRightHandRelativePosition;
         public float3 selfParentRightHandRelativeRotationEuler;
-        
+
         [Header("Environmental")]
         [Range(0, 1)]
         public float useHipsFromEnvironmental = 0f;
-        
+
         [Header("Experimental (CHANGES POSITION)")]
         [Range(0, 1)]
         public float useFakeDoubleJointedKnees = 0f;
-        
-        [Header("Direct Drive")]
-        public bool useDirectDrive = false;
-        [HideInInspector] public float3 hipWorldPosition;
-        [HideInInspector] public quaternion hipWorldRotation;
-        [HideInInspector] public float3 headWorldPosition;
-        [HideInInspector] public quaternion headWorldRotation;
-        [HideInInspector] public float3 leftHandWorldPosition;
-        [HideInInspector] public quaternion leftHandWorldRotation;
-        [HideInInspector] public float3 rightHandWorldPosition;
-        [HideInInspector] public quaternion rightHandWorldRotation;
-        [HideInInspector] public float3 leftFootWorldPosition;
-        [HideInInspector] public quaternion leftFootWorldRotation;
-        [HideInInspector] public float3 rightFootWorldPosition;
-        [HideInInspector] public quaternion rightFootWorldRotation;
-        [HideInInspector] public float3 chestTargetWorldPosition;
-        [HideInInspector] public quaternion chestTargetWorldRotation;
-        [HideInInspector] public float3 leftLowerArmWorldPosition;
-        [HideInInspector] public quaternion leftLowerArmWorldRotation;
-        [HideInInspector] public float3 rightLowerArmWorldPosition;
-        [HideInInspector] public quaternion rightLowerArmWorldRotation;
-        [HideInInspector] public float3 groundedStraddlingLeftLegWorldPosition;
-        [HideInInspector] public quaternion groundedStraddlingLeftLegWorldRotation;
-        [HideInInspector] public float3 groundedStraddlingRightLegWorldPosition;
-        [HideInInspector] public quaternion groundedStraddlingRightLegWorldRotation;
 
-        private Vector3[] _tPosePos;
-        private Quaternion[] _tPoseRot;
+        public float3 hipWorldPosition;
+        public quaternion hipWorldRotation;
+        public float3 headWorldPosition;
+        public quaternion headWorldRotation;
+        public float3 leftHandWorldPosition;
+        public quaternion leftHandWorldRotation;
+        public float3 rightHandWorldPosition;
+        public quaternion rightHandWorldRotation;
+        public float3 leftFootWorldPosition;
+        public quaternion leftFootWorldRotation;
+        public float3 rightFootWorldPosition;
+        public quaternion rightFootWorldRotation;
+        public float3 chestTargetWorldPosition;
+        public quaternion chestTargetWorldRotation;
+        public float3 leftLowerArmWorldPosition;
+        public quaternion leftLowerArmWorldRotation;
+        public float3 rightLowerArmWorldPosition;
+        public quaternion rightLowerArmWorldRotation;
+        public float3 groundedStraddlingLeftLegWorldPosition;
+        public quaternion groundedStraddlingLeftLegWorldRotation;
+        public float3 groundedStraddlingRightLegWorldPosition;
+        public quaternion groundedStraddlingRightLegWorldRotation;
+
 
         public bool IsInitialized() => _isInitialized;
         private bool _isInitialized;
 
         public void Initalize()
         {
-            if (!useDirectDrive)
-            {
-                if (null == runtimeTargets) runtimeTargets = MbusUtil.NewTransform("RuntimeTargets", transform);
-                if (null == hipTarget) hipTarget = CreateTarget(HumanBodyBones.Hips, "HipTarget");
-                if (null == headTarget) headTarget = CreateTarget(HumanBodyBones.Head, "HeadTarget");
-                if (null == leftHandTarget) leftHandTarget = CreateTarget(HumanBodyBones.LeftHand, "LeftHandTarget");
-                if (null == rightHandTarget) rightHandTarget = CreateTarget(HumanBodyBones.RightHand, "RightHandTarget");
-                if (null == leftFootTarget) leftFootTarget = CreateTarget(HumanBodyBones.LeftFoot, "LeftFootTarget");
-                if (null == rightFootTarget) rightFootTarget = CreateTarget(HumanBodyBones.RightFoot, "RightFootTarget");
-                if (null == groundedStraddlingLeftLeg) groundedStraddlingLeftLeg = CreateTarget(HumanBodyBones.LeftLowerLeg, "GroundedStraddlingLeftLeg");
-                if (null == groundedStraddlingRightLeg) groundedStraddlingRightLeg = CreateTarget(HumanBodyBones.RightLowerLeg, "GroundedStraddlingRightLeg");
-            
-                if (null == chestTarget) chestTarget = CreateTarget(HumanBodyBones.Chest, "ChestTarget");
-                if (null == leftLowerArmTarget) leftLowerArmTarget = CreateTarget(HumanBodyBones.Chest, "LeftLowerArmTarget");
-                if (null == rightLowerArmTarget) rightLowerArmTarget = CreateTarget(HumanBodyBones.Chest, "RightLowerArmTarget");
-
-                _tPosePos = AllTargetsStartingWithHead().Select(t => t.position).ToArray();
-                _tPoseRot = AllTargetsStartingWithHead().Select(t => t.rotation).ToArray();
-            }
-            
             _isInitialized = true;
-        }
-
-        private void OnDisable()
-        {
-            hipTarget = null;
-            headTarget = null;
-            leftHandTarget = null;
-            rightHandTarget = null;
-            leftFootTarget = null;
-            rightFootTarget = null;
-            groundedStraddlingLeftLeg = null;
-            groundedStraddlingRightLeg = null;
-
-            if (null != runtimeTargets) Destroy(runtimeTargets.gameObject);
-            runtimeTargets = null;
-        }
-
-        public void ApplyTPoseAndRepositionHeadToMatch(Vector3 pos, Quaternion rot)
-        {
-            ApplyTPose();
-            var transferRotation = rot * Quaternion.Inverse(headTarget.rotation);
-            var others = AllTargetsStartingWithHead().Skip(1).ToArray();
-            var repositions = others.Select(t => headTarget.InverseTransformPoint(t.position)).ToArray();
-            headTarget.position = pos;
-            headTarget.rotation = rot;
-            for (var index = 0; index < others.Length; index++)
-            {
-                var t = others[index];
-                t.position = headTarget.TransformPoint(repositions[index]);
-                t.rotation = transferRotation * t.rotation;
-            }
-        }
-
-        public void ApplyTPose()
-        {
-            var targets = AllTargetsStartingWithHead();
-            for (var index = 0; index < targets.Length; index++)
-            {
-                var target = targets[index];
-                target.position = _tPosePos[index];
-                target.rotation = _tPoseRot[index];
-            }
-        }
-
-        private Transform[] AllTargetsStartingWithHead()
-        {
-            return new [] { headTarget, hipTarget, leftHandTarget, rightHandTarget, leftFootTarget, rightFootTarget };
-        }
-
-        private Transform CreateTarget(HumanBodyBones which, string targetName)
-        {
-            return CreateTarget(MbusAnimatorUtil.ReflectiveGetPostRotation(animator.avatar, which), animator.GetBoneTransform(which), targetName);
-        }
-
-        private Transform CreateTarget(Quaternion postRotation, Transform bone, string targetName)
-        {
-            return MbusUtil.NewTransform(targetName, runtimeTargets, bone.position, bone.rotation * postRotation);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿// Copyright 2025 Haï~ (@vr_hai github.com/hai-vr)
+// Copyright 2025 Haï~ (@vr_hai github.com/hai-vr)
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,17 +42,7 @@ namespace HVR.IK.Editor
                 var boneTransform = my.animator.GetBoneTransform(bone);
                 var parentPosition = boneTransform.position;
                 var parentRotation = boneTransform.rotation * MbusAnimatorUtil.ReflectiveGetPostRotation(my.animator.avatar, bone);
-                
-                my.chestTarget.position = parentPosition;
-                my.chestTarget.rotation = parentRotation;
-            }
-            if (GUILayout.Button("Make Left Hand relative"))
-            {
-                BakeIt(my, my.leftHandTarget, my.selfParentLeftHandBone, ref my.selfParentLeftHandRelativePosition, ref my.selfParentLeftHandRelativeRotationEuler, ref my.useSelfParentLeftHand);
-            }
-            if (GUILayout.Button("Make Right Hand relative"))
-            {
-                BakeIt(my, my.rightHandTarget, my.selfParentRightHandBone, ref my.selfParentRightHandRelativePosition, ref my.selfParentRightHandRelativeRotationEuler, ref my.useSelfParentRightHand);
+               
             }
             if (GUILayout.Button("Copy leg struggle response graph to clipboard"))
             {
