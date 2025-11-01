@@ -408,7 +408,7 @@ namespace Basis.Scripts.Drivers
                         {
                             // Convert avatar-local eye position to world and apply
                             GetWorldSpacePos(BasisHelpers.AvatarPositionConversion(basisPlayer.BasisAvatar.AvatarEyePosition), Position, out float3 world);
-                            SetInitialData(rootTransform, control, role, world,quaternion.identity);
+                            SetInitialData(rootTransform, control, role, world, rootTransform.rotation);
                             break;
                         }
 
@@ -416,7 +416,7 @@ namespace Basis.Scripts.Drivers
                         {
                             // Convert avatar-local mouth position to world and apply
                             GetWorldSpacePos(BasisHelpers.AvatarPositionConversion(basisPlayer.BasisAvatar.AvatarMouthPosition), Position, out float3 world);
-                            SetInitialData(rootTransform, control, role, world, quaternion.identity);
+                            SetInitialData(rootTransform, control, role, world, rootTransform.rotation);
                             break;
                         }
 
@@ -556,13 +556,11 @@ namespace Basis.Scripts.Drivers
         public void SetInitialData(Transform Transform, BasisLocalBoneControl bone, BasisBoneTrackedRole Role, Vector3 WorldTpose,Quaternion WorldTposeRotation)
         {
             bone.OutGoingData.position = BasisLocalBoneDriver.ConvertToAvatarSpaceInitial(Transform, WorldTpose);
-            bone.OutGoingData.rotation = WorldTposeRotation;
-
-            BasisDebug.Log($"Tpose Rotation was {bone.OutGoingData.rotation}", BasisDebug.LogTag.Local);
+            bone.OutGoingData.rotation = Quaternion.Inverse(Transform.rotation) * WorldTposeRotation;
 
             if (IsApartOfSpineVertical(Role))
             {
-                bone.OutGoingData.position.y = 0;
+                bone.OutGoingData.position.x = 0;
             }
 
             bone.TposeLocal.rotation = bone.OutGoingData.rotation;

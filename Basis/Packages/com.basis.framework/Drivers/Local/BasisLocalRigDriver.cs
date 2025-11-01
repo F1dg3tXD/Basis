@@ -51,32 +51,33 @@ namespace Basis.Scripts.Drivers
             var HIKEffectors = BasisLocalPlayer.Instance.LocalRigDriver.HIKEffectors;
 
             HIKEffectors.hipWorldPosition = BasisLocalBoneDriver.HipsControl.OutgoingWorldData.position;
-            //  HIKEffectors.hipWorldRotation = BasisLocalBoneDriver.HipsControl.OutgoingWorldData.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.HipsControl.TposeLocalScaled.rotation);
-            HIKEffectors.hipWorldRotation = BasisLocalBoneDriver.HipsControl.TposeLocalScaled.rotation;
+            HIKEffectors.hipWorldRotation = BasisLocalBoneDriver.HipsControl.OutgoingWorldData.rotation;
+
 
             HIKEffectors.chestTargetWorldPosition = BasisLocalBoneDriver.ChestControl.OutgoingWorldData.position;
-           // HIKEffectors.chestTargetWorldRotation = BasisLocalBoneDriver.ChestControl.OutgoingWorldData.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.ChestControl.TposeLocalScaled.rotation);
+            HIKEffectors.chestTargetWorldRotation = BasisLocalBoneDriver.ChestControl.OutgoingWorldData.rotation;
 
             HIKEffectors.headWorldPosition = BasisLocalBoneDriver.HeadControl.OutgoingWorldData.position;
-           // HIKEffectors.headWorldRotation = BasisLocalBoneDriver.HeadControl.OutgoingWorldData.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.HeadControl.TposeLocalScaled.rotation);
+            HIKEffectors.headWorldRotation = BasisLocalBoneDriver.HeadControl.OutgoingWorldData.rotation;
+            /*
+            HIKEffectors.leftHandWorldPosition = BasisLocalBoneDriver.LeftHandControl.TposeLocalScaled.position;
+            HIKEffectors.leftHandWorldRotation = BasisLocalBoneDriver.LeftHandControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftHandControl.TposeLocalScaled.rotation);
 
-            HIKEffectors.leftHandWorldPosition = BasisLocalBoneDriver.LeftHandControl.OutgoingWorldData.position;
-            HIKEffectors.leftHandWorldRotation = BasisLocalBoneDriver.LeftHandControl.OutgoingWorldData.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftHandControl.TposeLocalScaled.rotation);
+            HIKEffectors.rightHandWorldPosition = BasisLocalBoneDriver.RightHandControl.TposeLocalScaled.position;
+            HIKEffectors.rightHandWorldRotation = BasisLocalBoneDriver.RightHandControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightHandControl.TposeLocalScaled.rotation);
 
-            HIKEffectors.rightHandWorldPosition = BasisLocalBoneDriver.RightHandControl.OutgoingWorldData.position;
-            HIKEffectors.rightHandWorldRotation = BasisLocalBoneDriver.RightHandControl.OutgoingWorldData.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightHandControl.TposeLocalScaled.rotation);
+            HIKEffectors.rightFootWorldPosition = BasisLocalBoneDriver.RightFootControl.TposeLocalScaled.position;
+            HIKEffectors.rightFootWorldRotation = BasisLocalBoneDriver.RightFootControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightFootControl.TposeLocalScaled.rotation);
 
-            HIKEffectors.rightFootWorldPosition = BasisLocalBoneDriver.RightFootControl.OutgoingWorldData.position;
-            HIKEffectors.rightFootWorldRotation = BasisLocalBoneDriver.RightFootControl.OutgoingWorldData.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightFootControl.TposeLocalScaled.rotation);
+            HIKEffectors.leftFootWorldPosition = BasisLocalBoneDriver.LeftFootControl.TposeLocalScaled.position;
+            HIKEffectors.leftFootWorldRotation = BasisLocalBoneDriver.LeftFootControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftFootControl.TposeLocalScaled.rotation);
 
-            HIKEffectors.leftFootWorldPosition = BasisLocalBoneDriver.LeftFootControl.OutgoingWorldData.position;
-            HIKEffectors.leftFootWorldRotation = BasisLocalBoneDriver.LeftFootControl.OutgoingWorldData.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftFootControl.TposeLocalScaled.rotation);
+            HIKEffectors.rightLowerArmWorldPosition = BasisLocalBoneDriver.RightLowerArmControl.TposeLocalScaled.position;
+            HIKEffectors.rightLowerArmWorldRotation = BasisLocalBoneDriver.RightLowerArmControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightLowerArmControl.TposeLocalScaled.rotation);
 
-            HIKEffectors.rightLowerArmWorldPosition = BasisLocalBoneDriver.RightLowerArmControl.OutgoingWorldData.position;
-            HIKEffectors.rightLowerArmWorldRotation = BasisLocalBoneDriver.RightLowerArmControl.OutgoingWorldData.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightLowerArmControl.TposeLocalScaled.rotation);
-
-            HIKEffectors.leftLowerArmWorldPosition = BasisLocalBoneDriver.LeftLowerArmControl.OutgoingWorldData.position;
-            HIKEffectors.leftLowerArmWorldRotation = BasisLocalBoneDriver.LeftLowerArmControl.OutgoingWorldData.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftLowerArmControl.TposeLocalScaled.rotation);
+            HIKEffectors.leftLowerArmWorldPosition = BasisLocalBoneDriver.LeftLowerArmControl.TposeLocalScaled.position;
+            HIKEffectors.leftLowerArmWorldRotation = BasisLocalBoneDriver.LeftLowerArmControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftLowerArmControl.TposeLocalScaled.rotation);
+            */
 
             var HIKFullTiger = BasisLocalPlayer.Instance.LocalRigDriver.HIKFullTiger;
             HIKFullTiger.DriveUpdate();
