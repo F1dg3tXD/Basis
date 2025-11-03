@@ -100,7 +100,7 @@ public class BasisLocalVirtualSpineDriver
     /// </summary>
     private static float SafeDistance(BasisLocalBoneControl a, BasisLocalBoneControl b)
     {
-        return Vector3.Distance(a.TposeLocalScaled.position, b.TposeLocalScaled.position);
+        return Vector3.Distance(a.TposeLocalScaled, b.TposeLocalScaled);
     }
 
     /// <summary>
@@ -229,7 +229,7 @@ public class BasisLocalVirtualSpineDriver
         if (torsoLock) localOffset.y = 0f;
 
         Vector3 desired = boneControl.Target.OutGoingData.position + (rot * localOffset);
-        if (torsoLock) desired.y = boneControl.TposeLocalScaled.position.y;
+        if (torsoLock) desired.y = boneControl.TposeLocalScaled.y;
 
         boneControl.OutGoingData.position = desired;
         boneControl.ApplyWorldAndLast(parentMatrix);
@@ -247,7 +247,7 @@ public class BasisLocalVirtualSpineDriver
         if (torsoLock) localOffset.y = 0f;
 
         Vector3 desired = basePositionWorld + (rot * localOffset);
-        if (torsoLock) desired.y = boneControl.TposeLocalScaled.position.y;
+        if (torsoLock) desired.y = boneControl.TposeLocalScaled.y;
 
         boneControl.OutGoingData.position = desired;
         boneControl.ApplyWorldAndLast(parentMatrix);

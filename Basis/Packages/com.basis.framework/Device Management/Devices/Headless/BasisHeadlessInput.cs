@@ -271,7 +271,7 @@ namespace Basis.Scripts.Device_Management.Devices.Headless
                     float crouchMin = charDriverLocked.MinimumCrouchPercent;
                     float crouchBlend = charDriverLocked.CrouchBlend;
                     float heightAdjust = (1f - crouchMin) * crouchBlend + crouchMin;
-                    posLocked.y -= Control.TposeLocalScaled.position.y * (1f - heightAdjust);
+                    posLocked.y -= Control.TposeLocalScaled.y * (1f - heightAdjust);
                 }
 
                 UnscaledDeviceCoord.position = posLocked;
@@ -372,7 +372,7 @@ namespace Basis.Scripts.Device_Management.Devices.Headless
                 float crouchMin = charDriver.MinimumCrouchPercent;
                 float crouchBlend = charDriver.CrouchBlend;
                 float heightAdjust = (1f - crouchMin) * crouchBlend + crouchMin;
-                pos.y -= Control.TposeLocalScaled.position.y * (1f - heightAdjust);
+                pos.y -= Control.TposeLocalScaled.y * (1f - heightAdjust);
             }
 
             UnscaledDeviceCoord.position = pos;

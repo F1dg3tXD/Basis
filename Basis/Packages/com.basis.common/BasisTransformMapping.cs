@@ -94,8 +94,8 @@ namespace Basis.Scripts.Common
         public bool[] HasRightLittle = new bool[3];
 
 
-        public  Vector3 Forwards;
-        public  Vector3 Upwards;
+        public Vector3 Forwards;
+        public Vector3 Upwards;
 
         public static bool AutoDetectReferences(Animator anim, Transform AnimatorRoot, ref BasisTransformMapping references)
         {
@@ -511,79 +511,97 @@ namespace Basis.Scripts.Common
             rotation = default;
             return false;
         }
-        public BasisCalibratedCoords TposeHead = new BasisCalibratedCoords();
-        public BasisCalibratedCoords TposeHips = new BasisCalibratedCoords();
-        public Quaternion RootRotation; // rotation during calibration
-
-        public BasisCalibratedCoords TposeLeftHand = new BasisCalibratedCoords();
-        public BasisCalibratedCoords TposeRightHand = new BasisCalibratedCoords();
+        // All captured bones live here
+        public Dictionary<HumanBodyBones, BasisCalibratedCoords> RemoteTposeData = new Dictionary<HumanBodyBones, BasisCalibratedCoords>();
+        public Dictionary<HumanBodyBones, BasisCalibratedCoords> LocalTposeData = new Dictionary<HumanBodyBones, BasisCalibratedCoords>();
+        // Optional: quick access list of bones actually found (useful if you want to iterate later)
+        public List<HumanBodyBones> CapturedBones = new List<HumanBodyBones>();
+        public Quaternion RootRotation; // rotation during calibration (animator world rotation)
+        public Vector3 RootPosition;    // position during calibration (animator world position)
         public void RecordPoses(Animator animator)
         {
-            // Capture animator rotation in world space
+            if (animator == null) return;
+
+            // Cache root transform at calibration time
             RootRotation = animator.transform.rotation;
+            RootPosition = animator.transform.position;
 
-            if (GetTransform(HumanBodyBones.Head, out Transform headBoneTransform))
+            LocalTposeData.Clear();
+            RemoteTposeData.Clear();
+            CapturedBones.Clear();
+
+            foreach (HumanBodyBones bone in Enum.GetValues(typeof(HumanBodyBones)))
             {
-                headBoneTransform.GetPositionAndRotation(out var pos, out var rot);
+                if (bone == HumanBodyBones.LastBone)
+                {
+                    continue; // sentinel, not a real bone
+                }
 
-                // Local rotation relative to animator's rotation
-                Quaternion relativeRot = Quaternion.Inverse(RootRotation) * rot;
+                Transform t = animator.GetBoneTransform(bone);
+                if (t == null)
+                {
+                    // Still record a default so the dictionary keys are complete
+                    RemoteTposeData[bone] = new BasisCalibratedCoords
+                    {
+                        position = Vector3.zero,
+                        rotation = Quaternion.identity
+                    };
 
-                TposeHead.position = pos;
-                TposeHead.rotation = relativeRot;
+                    LocalTposeData[bone] = new BasisCalibratedCoords
+                    {
+                        position = Vector3.zero,
+                        rotation = Quaternion.identity
+                    };
+
+                    continue;
+                }
+                t.GetPositionAndRotation(out var worldPos, out var worldRot);
+
+                // Convert to root space (relative to animator at calibration moment)
+                var relativePos = Quaternion.Inverse(RootRotation) * (worldPos - RootPosition);
+                var relativeRot = Quaternion.Inverse(RootRotation) * worldRot;//remove the root rotation
+
+                RemoteTposeData[bone] = new BasisCalibratedCoords
+                {
+                    position = relativePos,
+                    rotation = relativeRot
+                };
+
+                CapturedBones.Add(bone);
+
+                t.GetLocalPositionAndRotation(out var Pos, out var Rot);
+                LocalTposeData[bone] = new BasisCalibratedCoords
+                {
+                    position = Pos,
+                    rotation = Rot
+                };
+
+                CapturedBones.Add(bone);
             }
-            else
+        }
+        // Helper: reconstruct world pose later from stored root-space data
+        public void GetTPoseAtCalibration(HumanBodyBones bone, out Vector3 worldPos, out Quaternion worldRot)
+        {
+            if (RemoteTposeData.TryGetValue(bone, out var data))
             {
-                TposeHead.position = Vector3.zero;
-                TposeHead.rotation = Quaternion.identity;
+                worldPos = data.position;
+                worldRot = data.rotation;
+                return;
             }
+            worldPos = Vector3.zero;
+            worldRot = Quaternion.identity;
+        }
 
-            if (GetTransform(HumanBodyBones.Hips, out Transform hipsBoneTransform))
+        public void GetLocalTPoseAtCalibration(HumanBodyBones bone, out Vector3 worldPos, out Quaternion worldRot)
+        {
+            if (LocalTposeData.TryGetValue(bone, out var data))
             {
-                hipsBoneTransform.GetPositionAndRotation(out var pos, out var rot);
-
-                // Local rotation relative to animator's rotation
-                Quaternion relativeRot = Quaternion.Inverse(RootRotation) * rot;
-
-                TposeHips.position = pos;
-                TposeHips.rotation = relativeRot;
+                worldPos = data.position;
+                worldRot = data.rotation;
+                return;
             }
-            else
-            {
-                TposeHips.position = Vector3.zero;
-                TposeHips.rotation = Quaternion.identity;
-            }
-
-            if (GetTransform(HumanBodyBones.LeftHand, out Transform LeftHand))
-            {
-                LeftHand.GetPositionAndRotation(out var pos, out var rot);
-
-                // Local rotation relative to animator's rotation
-                Quaternion relativeRot = Quaternion.Inverse(RootRotation) * rot;
-
-                TposeLeftHand.position = pos;
-                TposeLeftHand.rotation = relativeRot;
-            }
-            else
-            {
-                TposeLeftHand.position = Vector3.zero;
-                TposeLeftHand.rotation = Quaternion.identity;
-            }
-            if (GetTransform(HumanBodyBones.RightHand, out Transform RightHand))
-            {
-                RightHand.GetPositionAndRotation(out var pos, out var rot);
-
-                // Local rotation relative to animator's rotation
-                Quaternion relativeRot = Quaternion.Inverse(RootRotation) * rot;
-
-                TposeRightHand.position = pos;
-                TposeRightHand.rotation = relativeRot;
-            }
-            else
-            {
-                TposeRightHand.position = Vector3.zero;
-                TposeRightHand.rotation = Quaternion.identity;
-            }
+            worldPos = Vector3.zero;
+            worldRot = Quaternion.identity;
         }
     }
 }

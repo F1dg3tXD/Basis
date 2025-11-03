@@ -430,7 +430,7 @@ namespace Basis.Scripts.BasisSdk.Players
             }
 
             // Simulate Final Destination of IK then process Animator and IK processes.
-            LocalRigDriver.SimulateIKDestinations(DeltaTime);
+          //  LocalRigDriver.SimulateIKDestinations(DeltaTime);
 
             // update WorldPosition in BoneDriver so AfterFinalMove can use world coords
             LocalBoneDriver.SimulateWorldDestinations(transform.localToWorldMatrix);
@@ -443,6 +443,10 @@ namespace Basis.Scripts.BasisSdk.Players
 
             // now other things can move like UI and NON-CHILDREN OF BASISLOCALPLAYER.
             AfterFinalMove?.Invoke();
+        }
+        public void SimulateOnLateUpdate(float DeltaTime)
+        {
+            LocalRigDriver.SimulateIKDestinations(DeltaTime);
         }
 
         /// <summary>
@@ -461,7 +465,7 @@ namespace Basis.Scripts.BasisSdk.Players
             Quaternion desiredRotWS = Quaternion.LookRotation(flatFwd.normalized, Vector3.up);
 
             // Full T-pose local offset from hips/root to head (already scaled)
-            Vector3 headTposeLocal = BasisLocalBoneDriver.HeadControl.TposeLocalScaled.position;
+            Vector3 headTposeLocal = BasisLocalBoneDriver.HeadControl.TposeLocalScaled;
 
             // Place avatar so that (hips + desiredRot * headTposeLocal) == headPosWS
             Vector3 avatarWorldPos = headPosWS - (desiredRotWS * headTposeLocal);

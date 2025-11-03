@@ -416,7 +416,7 @@ namespace Basis.Scripts.Drivers
         public void CreateRotationalLock(BasisLocalBoneControl addToBone, BasisLocalBoneControl target)
         {
             addToBone.Target = target;
-            addToBone.Offset = addToBone.TposeLocalScaled.position - target.TposeLocalScaled.position;
+            addToBone.Offset = addToBone.TposeLocalScaled - target.TposeLocalScaled;
             addToBone.ScaledOffset = addToBone.Offset;
             addToBone.Target = target;
             addToBone.HasTarget = target != null;

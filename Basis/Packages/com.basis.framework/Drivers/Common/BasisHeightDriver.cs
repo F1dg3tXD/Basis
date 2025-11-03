@@ -63,7 +63,7 @@ public static class BasisHeightDriver
         if (boneDriver != null && boneDriver.FindBone(out var leftHandBone, BasisBoneTrackedRole.LeftHand) && boneDriver.FindBone(out var rightHandBone, BasisBoneTrackedRole.RightHand))
         {
             localPlayer.CurrentHeight.AvatarArmSpan =
-                Vector3.Distance(leftHandBone.TposeLocalScaled.position, rightHandBone.TposeLocalScaled.position);
+                Vector3.Distance(leftHandBone.TposeLocalScaled, rightHandBone.TposeLocalScaled);
             BasisDebug.Log($"Current Avatar Arm Span: {localPlayer.CurrentHeight.AvatarArmSpan}", BasisDebug.LogTag.Avatar);
         }
         else
@@ -260,8 +260,7 @@ public static class BasisHeightDriver
         for (int i = 0; i < count; i++)
         {
             BasisLocalBoneControl c = boneDriver.Controls[i];
-            c.TposeLocalScaled.position = c.TposeLocal.position * heightScaleFactor;
-            c.TposeLocalScaled.rotation = c.TposeLocal.rotation;
+            c.TposeLocalScaled = c.TposeLocal * heightScaleFactor;
             c.ScaledOffset = c.Offset * heightScaleFactor;
         }
 

@@ -88,20 +88,20 @@ namespace HVR.IK.FullTiger
         [Range(0, 1)]
         public float useFakeDoubleJointedKnees = 0f;
 
-        public float3 hipWorldPosition;
-        public quaternion hipWorldRotation;
-        public float3 headWorldPosition;
-        public quaternion headWorldRotation;
-        public float3 leftHandWorldPosition;
-        public quaternion leftHandWorldRotation;
-        public float3 rightHandWorldPosition;
-        public quaternion rightHandWorldRotation;
+        public Vector3 hipWorldPosition;
+        public Quaternion hipWorldRotation;
+        public Vector3 headWorldPosition;
+        public Quaternion headWorldRotation;
+        public Vector3 leftHandWorldPosition;
+        public Quaternion leftHandWorldRotation;
+        public Vector3 rightHandWorldPosition;
+        public Quaternion rightHandWorldRotation;
         public float3 leftFootWorldPosition;
         public quaternion leftFootWorldRotation;
         public float3 rightFootWorldPosition;
         public quaternion rightFootWorldRotation;
-        public float3 chestTargetWorldPosition;
-        public quaternion chestTargetWorldRotation;
+        public Vector3 chestTargetWorldPosition;
+        public Quaternion chestTargetWorldRotation;
         public float3 leftLowerArmWorldPosition;
         public quaternion leftLowerArmWorldRotation;
         public float3 rightLowerArmWorldPosition;

@@ -21,9 +21,6 @@ namespace Basis.Scripts.Drivers
     {
         public HIKFullTiger HIKFullTiger;
         public HIKEffectors HIKEffectors;
-
-        /// <summary>Owning local player instance.</summary>
-        private BasisLocalPlayer localPlayer;
         /// <summary>Bone reference mapping (hips, chest, hands, etc.).</summary>
         private BasisTransformMapping references;
 
@@ -32,12 +29,13 @@ namespace Basis.Scripts.Drivers
         /// </summary>
         /// <param name="localPlayer">Local player providing animator and scale context.</param>
         /// <param name="references">Captured bone references for rig construction.</param>
-        public void Initialize(BasisLocalPlayer localPlayer, BasisTransformMapping references)
+        public void Initialize(BasisTransformMapping references)
         {
-            this.localPlayer = localPlayer;
             this.references = references;
         }
-
+        public Transform hips;
+        public Transform Chest;
+        public Transform Head;
         /// <summary>
         /// Updates IK targets and hints, applies One Euro filtering (hooks left in place but commented),
         /// and manually evaluates the rig playable graph for the given delta time.
@@ -49,35 +47,59 @@ namespace Basis.Scripts.Drivers
             //HipsControl.OutgoingWorldData is the position relative the the parent. (BasisLocalPlayer) essentially .position / .rotation of a transform
             //TposeLocalScaled accounts for the tpose where the position is scaled by the avatars selected height. this is how we resize on the fly correctly.
             var HIKEffectors = BasisLocalPlayer.Instance.LocalRigDriver.HIKEffectors;
+            var references = BasisLocalAvatarDriver.References;
+            if (hips != null)
+            {
+                hips.GetPositionAndRotation(out HIKEffectors.hipWorldPosition, out HIKEffectors.hipWorldRotation);
+            }
+            else
+            {
+                //HIKEffectors.hipWorldPosition = BasisLocalBoneDriver.HipsControl.OutgoingWorldData.position;
+                references.GetLocalTPoseAtCalibration(HumanBodyBones.Hips, out HIKEffectors.hipWorldPosition, out HIKEffectors.hipWorldRotation);
 
-            HIKEffectors.hipWorldPosition = BasisLocalBoneDriver.HipsControl.OutgoingWorldData.position;
-            HIKEffectors.hipWorldRotation = BasisLocalBoneDriver.HipsControl.OutgoingWorldData.rotation;
+                BasisDebug.Log($"Hips {HIKEffectors.hipWorldRotation}");
+            }
+            if (Chest != null)
+            {
+                Chest.GetPositionAndRotation(out HIKEffectors.chestTargetWorldPosition, out HIKEffectors.chestTargetWorldRotation);
+            }
+            else
+            {
 
+               // HIKEffectors.chestTargetWorldPosition = BasisLocalBoneDriver.ChestControl.OutgoingWorldData.position;
+                references.GetLocalTPoseAtCalibration(HumanBodyBones.Chest, out HIKEffectors.chestTargetWorldPosition, out HIKEffectors.chestTargetWorldRotation);
 
-            HIKEffectors.chestTargetWorldPosition = BasisLocalBoneDriver.ChestControl.OutgoingWorldData.position;
-            HIKEffectors.chestTargetWorldRotation = BasisLocalBoneDriver.ChestControl.OutgoingWorldData.rotation;
+                BasisDebug.Log($"Chest {HIKEffectors.chestTargetWorldRotation}");
+            }
+            if (Head != null)
+            {
+                Head.GetPositionAndRotation(out HIKEffectors.headWorldPosition, out HIKEffectors.headWorldRotation);
+            }
+            else
+            {
+               // HIKEffectors.headWorldPosition = BasisLocalBoneDriver.HeadControl.OutgoingWorldData.position;
+                references.GetLocalTPoseAtCalibration( HumanBodyBones.Head, out HIKEffectors.headWorldPosition, out HIKEffectors.headWorldRotation);
 
-            HIKEffectors.headWorldPosition = BasisLocalBoneDriver.HeadControl.OutgoingWorldData.position;
-            HIKEffectors.headWorldRotation = BasisLocalBoneDriver.HeadControl.OutgoingWorldData.rotation;
-            /*
-            HIKEffectors.leftHandWorldPosition = BasisLocalBoneDriver.LeftHandControl.TposeLocalScaled.position;
-            HIKEffectors.leftHandWorldRotation = BasisLocalBoneDriver.LeftHandControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftHandControl.TposeLocalScaled.rotation);
+                BasisDebug.Log($"Head {HIKEffectors.headWorldRotation}");
+            }
 
-            HIKEffectors.rightHandWorldPosition = BasisLocalBoneDriver.RightHandControl.TposeLocalScaled.position;
-            HIKEffectors.rightHandWorldRotation = BasisLocalBoneDriver.RightHandControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightHandControl.TposeLocalScaled.rotation);
+            HIKEffectors.leftHandWorldPosition = BasisLocalBoneDriver.LeftHandControl.OutgoingWorldData.position;
+          //  HIKEffectors.leftHandWorldRotation = BasisLocalBoneDriver.LeftHandControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftHandControl.TposeLocalScaled.rotation);
 
-            HIKEffectors.rightFootWorldPosition = BasisLocalBoneDriver.RightFootControl.TposeLocalScaled.position;
-            HIKEffectors.rightFootWorldRotation = BasisLocalBoneDriver.RightFootControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightFootControl.TposeLocalScaled.rotation);
+            HIKEffectors.rightHandWorldPosition = BasisLocalBoneDriver.RightHandControl.OutgoingWorldData.position;
+          //  HIKEffectors.rightHandWorldRotation = BasisLocalBoneDriver.RightHandControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightHandControl.TposeLocalScaled.rotation);
 
-            HIKEffectors.leftFootWorldPosition = BasisLocalBoneDriver.LeftFootControl.TposeLocalScaled.position;
-            HIKEffectors.leftFootWorldRotation = BasisLocalBoneDriver.LeftFootControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftFootControl.TposeLocalScaled.rotation);
+            HIKEffectors.rightFootWorldPosition = BasisLocalBoneDriver.RightFootControl.OutgoingWorldData.position;
+           // HIKEffectors.rightFootWorldRotation = BasisLocalBoneDriver.RightFootControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightFootControl.TposeLocalScaled.rotation);
 
-            HIKEffectors.rightLowerArmWorldPosition = BasisLocalBoneDriver.RightLowerArmControl.TposeLocalScaled.position;
-            HIKEffectors.rightLowerArmWorldRotation = BasisLocalBoneDriver.RightLowerArmControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightLowerArmControl.TposeLocalScaled.rotation);
+            HIKEffectors.leftFootWorldPosition = BasisLocalBoneDriver.LeftFootControl.OutgoingWorldData.position;
+            //HIKEffectors.leftFootWorldRotation = BasisLocalBoneDriver.LeftFootControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftFootControl.TposeLocalScaled.rotation);
 
-            HIKEffectors.leftLowerArmWorldPosition = BasisLocalBoneDriver.LeftLowerArmControl.TposeLocalScaled.position;
-            HIKEffectors.leftLowerArmWorldRotation = BasisLocalBoneDriver.LeftLowerArmControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftLowerArmControl.TposeLocalScaled.rotation);
-            */
+            HIKEffectors.rightLowerArmWorldPosition = BasisLocalBoneDriver.RightLowerArmControl.OutgoingWorldData.position;
+            //HIKEffectors.rightLowerArmWorldRotation = BasisLocalBoneDriver.RightLowerArmControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.RightLowerArmControl.TposeLocalScaled.rotation);
+
+            HIKEffectors.leftLowerArmWorldPosition = BasisLocalBoneDriver.LeftLowerArmControl.OutgoingWorldData.position;
+            //HIKEffectors.leftLowerArmWorldRotation = BasisLocalBoneDriver.LeftLowerArmControl.TposeLocalScaled.rotation;// * Quaternion.Inverse(BasisLocalBoneDriver.LeftLowerArmControl.TposeLocalScaled.rotation);
 
             var HIKFullTiger = BasisLocalPlayer.Instance.LocalRigDriver.HIKFullTiger;
             HIKFullTiger.DriveUpdate();

@@ -163,6 +163,7 @@ public class BasisEventDriver : MonoBehaviour
         if (BasisLocalPlayer.PlayerReady)
         {
             BasisLocalPlayer.Instance.FacialBlinkDriver.Simulate(TimeAsDouble);
+            BasisLocalPlayer.Instance.SimulateOnLateUpdate(DeltaTime);
         }
 
 #if UNITY_SERVER

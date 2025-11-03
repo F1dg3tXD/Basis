@@ -136,11 +136,14 @@ namespace Basis.Scripts.TransformBinders.BoneControl
         /// <summary>Inverse offset from the bone used when <see cref="UseInverseOffset"/> is true.</summary>
         [SerializeField] public BasisCalibratedCoords InverseOffsetFromBone = new BasisCalibratedCoords();
 
-        /// <summary>T-pose local-space reference.</summary>
-        [SerializeField] public BasisCalibratedCoords TposeLocal = new BasisCalibratedCoords();
-
-        /// <summary>Scaled T-pose local-space reference (e.g., by avatar height change).</summary>
-        [SerializeField] public BasisCalibratedCoords TposeLocalScaled = new BasisCalibratedCoords();
+        /// <summary>
+        /// tpose position of bones
+        /// </summary>
+        [SerializeField] public float3 TposeLocal;
+        /// <summary>
+        /// tpose position of bones modifyed by the scaler
+        /// </summary>
+        [SerializeField] public float3 TposeLocalScaled;
 
         /// <summary>
         /// Computes the outgoing local and world pose for this bone.

@@ -236,8 +236,8 @@ namespace Basis.Scripts.Device_Management.Devices.Desktop
             }
 
             // Eye relative position
-            Vector3 tposeEyeWorld = BasisLocalBoneDriver.EyeControl.TposeLocalScaled.position;
-            Vector3 tposeHeadWorld = BasisLocalBoneDriver.HeadControl.TposeLocalScaled.position;
+            Vector3 tposeEyeWorld = BasisLocalBoneDriver.EyeControl.TposeLocalScaled;
+            Vector3 tposeHeadWorld = BasisLocalBoneDriver.HeadControl.TposeLocalScaled;
             Vector3 neutralEyeFromHead = tposeEyeWorld - tposeHeadWorld;
 
             // Apply yaw/pitch with clamping
@@ -251,7 +251,7 @@ namespace Basis.Scripts.Device_Management.Devices.Desktop
                 BasisLocalPlayer Player = BasisLocalPlayer.Instance;
                 var crouchMinimum = Player.LocalCharacterDriver.MinimumCrouchPercent;
                 float heightAdj = (1 - crouchMinimum) * Player.LocalCharacterDriver.CrouchBlend + crouchMinimum;
-                float headLocalY = BasisLocalBoneDriver.HeadControl.TposeLocalScaled.position.y;
+                float headLocalY = BasisLocalBoneDriver.HeadControl.TposeLocalScaled.y;
                 float crouchDelta = headLocalY * (1 - heightAdj);
                 tposeHeadWorld.y -= crouchDelta;
             }

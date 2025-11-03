@@ -132,15 +132,16 @@ namespace Basis.Scripts.Drivers
                 RemoteBoneJobSystem.RemoveRemotePlayer(player.NetworkReceiver.playerId);
                 InBoneDriver = false;
             }
-
+            player.RemoteAvatarDriver.References.GetTPoseAtCalibration(HumanBodyBones.Head, out Vector3 Tposehead, out Quaternion TposeHeadRot);
+            player.RemoteAvatarDriver.References.GetTPoseAtCalibration(HumanBodyBones.Hips, out Vector3 TposeHips, out Quaternion TposeHipsRot);
             // Register with the RemoteBoneJobSystem
             RemoteBoneJobSystem.AddRemotePlayer(
                 key: player.NetworkReceiver.playerId,
                 remotePlayerRoot: player.BasisAvatar.Animator.transform,
                 head: player.RemoteAvatarDriver.References.head,
                 hips: player.RemoteAvatarDriver.References.Hips,
-                tposeHead: player.RemoteAvatarDriver.References.TposeHead,
-                tposeHips: player.RemoteAvatarDriver.References.TposeHips,
+                tposeHead: new BasisCalibratedCoords(Tposehead, TposeHeadRot),
+                tposeHips: new BasisCalibratedCoords(TposeHips, TposeHipsRot),
                 authoredCenterEyeWorld: BasisHelpers.ConvertFromLocalSpace(
                     BasisHelpers.AvatarPositionConversion(player.BasisAvatar.AvatarEyePosition),
                     player.BasisAvatar.Animator.transform.position
