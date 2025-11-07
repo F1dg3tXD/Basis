@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Animations;
@@ -306,7 +307,7 @@ public static class BasisAnimationRuntimeUtils
         tip.SetRotation(stream, tRotation);
     }
     public static Quaternion V4ToQuat(Vector4 v) => new Quaternion(v.x, v.y, v.z, v.w);
-    public static void SolveOne(
+    public static void SolveLeg(
     AnimationStream stream,
     BoolProperty enabledProp,
     ReadWriteTransformHandle root, ReadWriteTransformHandle mid, ReadWriteTransformHandle tip,
@@ -341,7 +342,7 @@ public static class BasisAnimationRuntimeUtils
         );
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Apply(AnimationStream stream, ReadWriteTransformHandle h, Vector3Property p, Vector4Property r, Vector4Property o, BoolProperty sw)
+    public static void ApplyOverridenData(AnimationStream stream, ReadWriteTransformHandle h, Vector3Property p, Vector4Property r, Vector4Property o, BoolProperty sw)
     {
         if (h.IsValid(stream))
         {
@@ -495,126 +496,110 @@ public static class BasisAnimationRuntimeUtils
         float d = Vector3.Dot(point - planePoint, planeNormal);
         return point - planeNormal * d;
     }
+    static Quaternion FromToRotation(Vector3 from, Vector3 to)
+    {
+        // Unity's FromToRotation is robust and handles collinear cases.
+        if (from.sqrMagnitude <= 1e-20f || to.sqrMagnitude <= 1e-20f)
+        {
+            return Quaternion.identity;
+        }
 
-    /// <summary>
-    /// Spine IK that tolerates missing spine/upperChest links.
-    /// Active chain becomes: hips -> [spine?] -> chest -> [upperChest?] -> neck -> head
-    /// Root can be pinned. Head matches target position; twist is distributed down the chain.
-    /// Optional bend hint (usually chest forward) biases the chain into a plane.
-    /// </summary>
-    public static void SolveSpineChain(
-        AnimationStream stream,
-        // Required root & end:
-        ReadWriteTransformHandle hips,
-        ReadWriteTransformHandle chest,
-        ReadWriteTransformHandle neck,
-        ReadWriteTransformHandle head,
-        // Optional middles (may be invalid in the stream):
-        ReadWriteTransformHandle spine,         // optional
-        ReadWriteTransformHandle upperChest,    // optional
-                                                // Target & params
-        AffineTransform headTarget,
-        bool allowRootSlide,
-        int iterations,
-        float twistWeight,          // 0..1
-        bool hasChestBendHint,      // if true, use bendHintDir
-        Vector3 bendHintDir,        // world-space (e.g., chest forward)
-        float bendBias              // 0..1 how strongly to bias toward bend plane
+        return Quaternion.FromToRotation(from, to);
+    }
+    public static void SolveSpineChainWithHips( AnimationStream stream,
+
+        // Hips drive
+        in BoolProperty enabledHips,
+        in ReadWriteTransformHandle handleHips,
+        in Vector3Property targetPositionHips,
+        in Vector4Property targetRotationHips,
+        in Vector4Property offsetRotationHips,
+
+        // Chain handles (some optional)
+        ReadWriteTransformHandle handleChest,
+        ReadWriteTransformHandle handleNeck,
+        ReadWriteTransformHandle handleHead,
+        ReadWriteTransformHandle handleSpine,        // optional
+        ReadWriteTransformHandle handleUpperChest,   // optional
+
+        // Head target (as properties)
+        in Vector3Property targetPositionHead,
+        in Vector4Property targetRotationHead,
+
+        // IK tuning
+        bool allowRootSlide = true,
+        int iterations = 16,
+        float twistWeight = 0.25f,
+        bool hasChestBendHint = false,
+        Vector3 bendHintDir = default,
+        float bendBias = 1f
     )
     {
-        // Validate minimally required joints
-        if (!(hips.IsValid(stream) && chest.IsValid(stream) && neck.IsValid(stream) && head.IsValid(stream)))
+        // ---- 1) Hips write (merged) ------------------------------------------------------
+        if (handleHips.IsValid(stream))
         {
-            // Not enough to solve a spine; pass through gracefully
-            Pass(stream, hips, chest, head);
-            PassThrough(stream, neck);
+            if (enabledHips.Get(stream))
+            {
+                Vector3 hipPos = targetPositionHips.Get(stream);
+                Quaternion hipRot = V4ToQuat(targetRotationHips.Get(stream));
+                Quaternion hipOff = V4ToQuat(offsetRotationHips.Get(stream));
+
+                handleHips.SetPosition(stream, hipPos);
+                handleHips.SetRotation(stream, hipRot * hipOff); // apply offset in target space
+            }
+            else
+            {
+                BasisAnimationRuntimeUtils.PassThrough(stream, handleHips);
+            }
+        }
+
+        // ---- 2) Minimal validation for the IK chain -------------------------------------
+        // Required: hips, chest, neck, head
+        if (!(handleHips.IsValid(stream) &&
+              handleChest.IsValid(stream) &&
+              handleNeck.IsValid(stream) &&
+              handleHead.IsValid(stream)))
+        {
+            Pass(stream, handleHips, handleChest, handleHead);
+            PassThrough(stream, handleNeck);
             return;
         }
 
-        // ---- Build compacted chain in order without allocations ----
-        // Handles h0..h5 (max 6 joints). We always include hips, chest, neck, head; optionally spine, upperChest.
-        ReadWriteTransformHandle h0 = hips;
-        ReadWriteTransformHandle h1, h2, h3, h4, h5;
+        // Build head target from properties
+        var headTarget = new AffineTransform(
+            targetPositionHead.Get(stream),
+            V4ToQuat(targetRotationHead.Get(stream))
+        );
+
+        // ---- 3) Build compact chain (4..6 links) ----------------------------------------
+        ReadWriteTransformHandle h0 = default, h1 = default, h2 = default,
+                                 h3 = default, h4 = default, h5 = default;
         int count = 0;
 
-        // We’ll push joints sequentially
-        ReadWriteTransformHandle a0 = hips;
-        ReadWriteTransformHandle a1 = spine.IsValid(stream) ? spine : chest; // If spine missing, chest takes slot 1
-        ReadWriteTransformHandle a2, a3, a4, a5;
-
-        if (spine.IsValid(stream))
+        void Push(ReadWriteTransformHandle h)
         {
-            // chain: hips(0) -> spine(1) -> chest(?)
-            a2 = chest;
-        }
-        else
-        {
-            // chain: hips(0) -> chest(1)
-            a2 = neck; // we’ll overwrite below if upperChest is valid
-        }
-
-        // Decide remaining based on which of spine/upperChest exist
-        if (spine.IsValid(stream))
-        {
-            if (upperChest.IsValid(stream))
+            switch (count)
             {
-                // hips, spine, chest, upperChest, neck, head
-                a3 = upperChest; a4 = neck; a5 = head;
+                case 0: h0 = h; break;
+                case 1: h1 = h; break;
+                case 2: h2 = h; break;
+                case 3: h3 = h; break;
+                case 4: h4 = h; break;
+                case 5: h5 = h; break;
+                default: return;
             }
-            else
-            {
-                // hips, spine, chest, neck, head
-                a3 = neck; a4 = head; a5 = head; // a5 dummy; will be ignored
-            }
-        }
-        else
-        {
-            if (upperChest.IsValid(stream))
-            {
-                // hips, chest, upperChest, neck, head
-                a2 = chest; a3 = upperChest; a4 = neck; a5 = head;
-            }
-            else
-            {
-                // hips, chest, neck, head
-                a2 = chest; a3 = neck; a4 = head; a5 = head; // a5 dummy
-            }
+            count++;
         }
 
-        // Now compact into h0..hN-1 uniquely and compute count
-        h0 = a0; count = 1;
+        Push(handleHips);
+        if (handleSpine.IsValid(stream)) Push(handleSpine);
+        Push(handleChest);
+        if (handleUpperChest.IsValid(stream)) Push(handleUpperChest);
+        Push(handleNeck);
+        Push(handleHead);
 
-        void Push(ref ReadWriteTransformHandle slot, ReadWriteTransformHandle handle)
-        {
-            if (!handle.Equals(h0) && (count == 0 || !handle.Equals(slot)))
-            {
-                switch (count)
-                {
-                    case 1: h1 = handle; break;
-                    case 2: h2 = handle; break;
-                    case 3: h3 = handle; break;
-                    case 4: h4 = handle; break;
-                    case 5: h5 = handle; break;
-                    default: return;
-                }
-                count++;
-            }
-        }
-
-        // Initialize to avoid CS0165 (will overwrite through Push)
-        h1 = h2 = h3 = h4 = h5 = hips;
-
-        // Push in order, skipping duplicates that might have happened in “missing link” branches
-        Push(ref h1, a1);
-        Push(ref h2, a2);
-        Push(ref h3, a3);
-        if (a4.GetHashCode() != a3.GetHashCode()) Push(ref h4, a4);
-        if (a5.GetHashCode() != a4.GetHashCode() && a5.GetHashCode() != a3.GetHashCode()) Push(ref h5, a5);
-
-        // Clamp count [4..6]
         count = Mathf.Clamp(count, 4, 6);
 
-        // Utility accessors by index
         Vector3 GetPos(int i)
         {
             switch (i)
@@ -664,7 +649,7 @@ public static class BasisAnimationRuntimeUtils
             }
         }
 
-        // Read positions & originals
+        // ---- 4) Read positions, lengths, guard rails ------------------------------------
         Vector3 p0 = GetPos(0), p1 = GetPos(1), p2 = GetPos(2);
         Vector3 p3 = (count > 3) ? GetPos(3) : p2;
         Vector3 p4 = (count > 4) ? GetPos(4) : p3;
@@ -672,17 +657,16 @@ public static class BasisAnimationRuntimeUtils
 
         Vector3 o0 = p0, o1 = p1, o2 = p2, o3 = p3, o4 = p4, o5 = p5;
 
-        // Segment lengths (count-1 segments)
         float L0 = (p1 - p0).magnitude;
         float L1 = (p2 - p1).magnitude;
         float L2 = (count > 3) ? (p3 - p2).magnitude : 0f;
         float L3 = (count > 4) ? (p4 - p3).magnitude : 0f;
         float L4 = (count > 5) ? (p5 - p4).magnitude : 0f;
 
-        // Validate lengths
-        if (L0 <= 1e-7f || L1 <= 1e-7f || (count > 3 && L2 <= 1e-7f) || (count > 4 && L3 <= 1e-7f) || (count > 5 && L4 <= 1e-7f))
+        if (L0 <= 1e-7f || L1 <= 1e-7f || (count > 3 && L2 <= 1e-7f) ||
+            (count > 4 && L3 <= 1e-7f) || (count > 5 && L4 <= 1e-7f))
         {
-            // Avoid NaNs
+            // preserve current pose; nothing to do
             for (int i = 0; i < count; i++) SetPos(i, GetPos(i));
             return;
         }
@@ -690,11 +674,11 @@ public static class BasisAnimationRuntimeUtils
         Quaternion targetRot = headTarget.rotation;
         Vector3 targetPos = headTarget.translation;
 
-        // ---- FABRIK iterations ----
+        // ---- 5) FABRIK -------------------------------------------------------------------
         int iters = Mathf.Max(1, iterations);
         for (int it = 0; it < iters; it++)
         {
-            // Backward: set end to target, pull back
+            // Backward
             switch (count)
             {
                 case 6:
@@ -714,25 +698,23 @@ public static class BasisAnimationRuntimeUtils
                     break;
                 default: // 4
                     p3 = targetPos;
-                    p2 = p3 + NormalizeSafe(p2 - p3) * L2; // note: in 4-link, L2 is (p3-p2) length; we repurpose vars below
+                    p2 = p3 + NormalizeSafe(p2 - p3) * L2;
                     p1 = p2 + NormalizeSafe(p1 - p2) * L1;
                     p0 = p1 + NormalizeSafe(p0 - p1) * L0;
                     break;
             }
 
-            // Bend plane bias (optional). We bias interior joints toward a plane defined by axis & bendHintDir.
+            // Bend plane bias (optional)
             if (hasChestBendHint && bendBias > 0f)
             {
                 float bias = Mathf.Clamp01(bendBias);
-                // axis root->end after backward
                 Vector3 end = (count == 6) ? p5 : (count == 5) ? p4 : p3;
                 Vector3 axis = NormalizeSafe(end - p0);
-                // Plane normal from axis and hint dir (if parallel, fallback to up)
+
                 Vector3 n = Vector3.Cross(axis, bendHintDir);
                 if (n.sqrMagnitude < 1e-8f) n = Vector3.Cross(axis, Vector3.up);
                 n = NormalizeSafe(n);
 
-                // Project interior joints (excluding root & end) toward the plane through root with normal n
                 if (count >= 4)
                 {
                     p1 = Vector3.Lerp(p1, ProjectPointOnPlane(p1, p0, n), bias * 0.5f);
@@ -742,7 +724,7 @@ public static class BasisAnimationRuntimeUtils
                 }
             }
 
-            // Forward: pin/move root, push forward
+            // Forward (pin or slide root)
             if (!allowRootSlide) p0 = o0;
 
             switch (count)
@@ -774,13 +756,13 @@ public static class BasisAnimationRuntimeUtils
         if (count > 4) SetPos(4, p4);
         if (count > 5) SetPos(5, p5);
 
-        // Orient each joint to face its child (minimal swing; twist handled next)
+        // ---- 6) Minimal swing: orient each joint toward its child; head to target rot ---
         void FaceChild(int i, Vector3 oldA, Vector3 oldB, Vector3 newA, Vector3 newB)
         {
             Vector3 vOld = oldB - oldA;
             Vector3 vNew = newB - newA;
             if (vOld.sqrMagnitude <= 1e-12f || vNew.sqrMagnitude <= 1e-12f) return;
-            Quaternion delta = QuaternionExt.FromToRotation(vOld, vNew);
+            Quaternion delta = FromToRotation(vOld, vNew);
             SetRot(i, delta * GetRot(i));
         }
 
@@ -791,8 +773,7 @@ public static class BasisAnimationRuntimeUtils
             FaceChild(2, o2, o3, p2, p3);
             FaceChild(3, o3, o4, p3, p4);
             FaceChild(4, o4, o5, p4, p5);
-            // Head rotation: match target
-            SetRot(5, headTarget.rotation);
+            SetRot(5, targetRot);
         }
         else if (count == 5)
         {
@@ -800,26 +781,23 @@ public static class BasisAnimationRuntimeUtils
             FaceChild(1, o1, o2, p1, p2);
             FaceChild(2, o2, o3, p2, p3);
             FaceChild(3, o3, o4, p3, p4);
-            SetRot(4, headTarget.rotation);
+            SetRot(4, targetRot);
         }
         else // 4
         {
             FaceChild(0, o0, o1, p0, p1);
             FaceChild(1, o1, o2, p1, p2);
             FaceChild(2, o2, o3, p2, p3);
-            SetRot(3, headTarget.rotation);
+            SetRot(3, targetRot);
         }
 
-        // Distribute twist from head target down the chain
+        // ---- 7) Twist distribution from head target down the chain ----------------------
         float tWeight = Mathf.Clamp01(twistWeight);
         if (tWeight > 0f)
         {
-            // Compare current head rot vs desired
             Quaternion headNow = (count == 6) ? GetRot(5) : (count == 5) ? GetRot(4) : GetRot(3);
-            Quaternion twistDelta = headTarget.rotation * Quaternion.Inverse(headNow);
+            Quaternion twistDelta = targetRot * Quaternion.Inverse(headNow);
 
-            // Spread most near the neck; taper toward hips.
-            // We only smear a portion 'tWeight' of the delta.
             float wNeck = 0.45f * tWeight;
             float wUp = 0.30f * tWeight;
             float wChest = 0.18f * tWeight;

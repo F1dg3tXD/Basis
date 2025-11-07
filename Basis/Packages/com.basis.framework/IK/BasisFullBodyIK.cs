@@ -722,34 +722,16 @@ chestRadius, collisionSkin;
 
                 return;
             }
+            BasisAnimationRuntimeUtils.SolveSpineChainWithHips(stream,in enabledHips,in HandleHips,
+                in targetPositionHips,in targetRotationHips,in offsetRotationHips,
+     HandleChest, HandleNeck, HandleHead, HandleSpine, HandleUpperChest,
+     in targetPositionHead, in targetRotationHead,true, 16, 0.1f, false, Vector3.zero,0);
 
-            // --- Hips minimal driver ---
-            if (enabledHips.Get(stream) && HandleHips.IsValid(stream))
-             {
-              Vector3 hipPos = targetPositionHips.Get(stream);
-                Quaternion hipRot = V4ToQuat(targetRotationHips.Get(stream));
-               Quaternion hipOff = V4ToQuat(offsetRotationHips.Get(stream));
-              HandleHips.SetPosition(stream, hipPos);
-             HandleHips.SetRotation(stream, hipRot * hipOff); // apply offset in target space
-               }
-              else if (HandleHips.IsValid(stream))
-              {
-                  BasisAnimationRuntimeUtils.PassThrough(stream, HandleHips);
-              }
-
-            // --- Head + Legs (classic TwoBone) ---
-            // BasisAnimationRuntimeUtils.SolveOne(stream, enabledHead, HandleChest, HandleNeck, HandleHead,
-            //    targetPositionHead, targetRotationHead, hintPositionHead, hintRotationHead,
-            //   hintWeightHead, targetOffsetHead, bendNormalHead);
-
-
-            BasisAnimationRuntimeUtils.SolveSpineChain(stream, HandleHips, HandleChest, HandleNeck, HandleHead, HandleSpine, HandleUpperChest, new AffineTransform(targetPositionHead.Get(stream), V4ToQuat(targetRotationHead.Get(stream))), true, 16, 0.25f, false, Vector3.zero, 1);
-
-            BasisAnimationRuntimeUtils.SolveOne(stream, enabledLeftLowerLeg, HandleLeftUpperLeg, HandleLeftLowerLeg, HandleLeftFoot,
+            BasisAnimationRuntimeUtils.SolveLeg(stream, enabledLeftLowerLeg, HandleLeftUpperLeg, HandleLeftLowerLeg, HandleLeftFoot,
                 targetPositionLeftLowerLeg, targetRotationLeftLowerLeg, hintPositionLeftLowerLeg, hintRotationLeftLowerLeg,
                 hintWeightLeftLowerLeg, targetOffsetLeftLowerLeg, bendNormalHead);
 
-            BasisAnimationRuntimeUtils.SolveOne(stream, enabledRightLowerLeg, HandleRightUpperLeg, HandleRightLowerLeg, HandleRightFoot,
+            BasisAnimationRuntimeUtils.SolveLeg(stream, enabledRightLowerLeg, HandleRightUpperLeg, HandleRightLowerLeg, HandleRightFoot,
                 targetPositionRightLowerLeg, targetRotationRightLowerLeg, hintPositionRightLowerLeg, hintRotationRightLowerLeg,
                 hintWeightRightLowerLeg, targetOffsetRightLowerLeg, bendNormalHead);
 
@@ -770,48 +752,46 @@ chestRadius, collisionSkin;
                 handLocalStart, handLocalEnd, handRadius, handSkin, useHandCapsule,
                 protectElbow);
 
-            // --- Integrated "damped TR" application (world-space) ---
             BasisAnimationRuntimeUtils.ApplyToeRotation(stream, leftToeEnabled, HandleLeftToe, leftDrivenTargetPos, leftDrivenTargetRot);
             BasisAnimationRuntimeUtils.ApplyToeRotation(stream, RightToeEnabled, HandleRightToe, rightDrivenTargetPos, rightDrivenTargetRot);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleHips, p0, r0, o0, w0);
-            BasisAnimationRuntimeUtils.Apply(stream, HandleLeftUpperLeg, p1, r1, o1, w1);
-            BasisAnimationRuntimeUtils.Apply(stream, HandleRightUpperLeg, p2, r2, o2, w2);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleHips, p0, r0, o0, w0);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleLeftUpperLeg, p1, r1, o1, w1);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleRightUpperLeg, p2, r2, o2, w2);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleLeftLowerLeg, p3, r3, o3, w3);
-            BasisAnimationRuntimeUtils.Apply(stream, HandleRightLowerLeg, p4, r4, o4, w4);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleLeftLowerLeg, p3, r3, o3, w3);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleRightLowerLeg, p4, r4, o4, w4);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleLeftFoot, p5, r5, o5, w5);
-            BasisAnimationRuntimeUtils.Apply(stream, HandleRightFoot, p6, r6, o6, w6);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleLeftFoot, p5, r5, o5, w5);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleRightFoot, p6, r6, o6, w6);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleSpine, p7, r7, o7, w7);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleSpine, p7, r7, o7, w7);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleChest, p8, r8, o8, w8);
-            BasisAnimationRuntimeUtils.Apply(stream, HandleNeck, p9, r9, o9, w9);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleChest, p8, r8, o8, w8);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleNeck, p9, r9, o9, w9);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleHead, p10, r10, o10, w10);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleHead, p10, r10, o10, w10);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleLeftShoulder, p11, r11, o11, w11);
-            BasisAnimationRuntimeUtils.Apply(stream, HandleRightShoulder, p12, r12, o12, w12);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleLeftShoulder, p11, r11, o11, w11);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleRightShoulder, p12, r12, o12, w12);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleLeftUpperArm, p13, r13, o13, w13);
-            BasisAnimationRuntimeUtils.Apply(stream, HandleRightUpperArm, p14, r14, o14, w14);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleLeftUpperArm, p13, r13, o13, w13);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleRightUpperArm, p14, r14, o14, w14);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleRightUpperArm, p15, r15, o15, w15);
-            BasisAnimationRuntimeUtils.Apply(stream, HandleRightLowerArm, p16, r16, o16, w16);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleRightUpperArm, p15, r15, o15, w15);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleRightLowerArm, p16, r16, o16, w16);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleLeftHand, p17, r17, o17, w17);
-            BasisAnimationRuntimeUtils.Apply(stream, HandleRightHand, p18, r18, o18, w18);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleLeftHand, p17, r17, o17, w17);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleRightHand, p18, r18, o18, w18);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleLeftToe, p19, r19, o19, w19);
-            BasisAnimationRuntimeUtils.Apply(stream, HandleRightToe, p20, r20, o20, w20);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleLeftToe, p19, r19, o19, w19);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleRightToe, p20, r20, o20, w20);
 
-            BasisAnimationRuntimeUtils.Apply(stream, HandleUpperChest, p54, r54, o54, w54);
+            BasisAnimationRuntimeUtils.ApplyOverridenData(stream, HandleUpperChest, p54, r54, o54, w54);
         }
         static Quaternion V4ToQuat(Vector4 v) => new Quaternion(v.x, v.y, v.z, v.w);
 
     }
-
     public class BasisFullBodyJobBinder : AnimationJobBinder<BasisFullIKConstraintJob, BasisFullBodyData>
     {
         public override BasisFullIKConstraintJob Create(Animator animator, ref BasisFullBodyData data, Component component)
