@@ -481,32 +481,95 @@ public static class BasisAnimationRuntimeUtils
         }
     }
 
+    // ---------- Small math utils ----------
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static Vector3 NormalizeSafe(Vector3 v)
+    static Vector3 NormalizeSafe(Vector3 v, Vector3 fallback)
     {
         float m2 = Vector3.Dot(v, v);
-        if (m2 <= 1e-12f) return Vector3.forward;
-        return v / Mathf.Sqrt(m2);
+        if (m2 <= 1e-12f) return fallback;
+        return v * InverseSqrt(m2);
     }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static float InverseSqrt(float x)
+    {
+        return x > 0f ? 1f / Mathf.Sqrt(x) : 0f;
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static Vector3 NormalizeSafe(Vector3 v) => NormalizeSafe(v, Vector3.forward);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static float Saturate(float x) => Mathf.Clamp01(x);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static float Unlerp(float a, float b, float v) => (v - a) / (b - a);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static Vector3 ProjectPointOnPlane(Vector3 point, Vector3 planePoint, Vector3 planeNormal)
     {
-        // plane: (x - planePoint)·n = 0
         float d = Vector3.Dot(point - planePoint, planeNormal);
         return point - planeNormal * d;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static Quaternion FromToRotation(Vector3 from, Vector3 to)
     {
-        // Unity's FromToRotation is robust and handles collinear cases.
         if (from.sqrMagnitude <= 1e-20f || to.sqrMagnitude <= 1e-20f)
-        {
             return Quaternion.identity;
-        }
-
         return Quaternion.FromToRotation(from, to);
     }
-    public static void SolveSpineChainWithHips( AnimationStream stream,
+
+    // ---------- Optional guard/assist features ----------
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void LimitHipHeadDistance(ref Vector3 hip, ref Vector3 head, float maxLength, bool headDominates)
+    {
+        if (maxLength <= 0f) return;
+        Vector3 d = head - hip;
+        float L = d.magnitude;
+        if (L <= maxLength) return;
+
+        Vector3 dir = (L > 1e-8f) ? (d / L) : Vector3.forward;
+        if (headDominates)
+            hip = head - dir * maxLength;
+        else
+            head = hip + dir * maxLength;
+    }
+
+    /// <summary>
+    /// Adds a small "tension" pushing hips away from head when near compression, to reduce buckling.
+    /// </summary>
+    static void ApplyBucklingTension(ref Vector3 hip, ref Vector3 head, Quaternion hipRot, Quaternion headRot,
+                                     float maxLength, float gain /*0..1*/)
+    {
+        if (gain <= 0f || maxLength <= 0f) return;
+
+        float dist = Vector3.Distance(hip, head);
+        if (dist <= 1e-6f) return;
+
+        // How compressed are we?
+        float awayFromMax = 1f - dist / maxLength;                 // 0 (stretched) .. 1 (fully compressed)
+        if (awayFromMax <= 0f) return;
+
+        Vector3 tensionDir = NormalizeSafe(hip - head, Vector3.forward); // push hips away from head
+        // Compare with a spine guide: blend hip/head local +X (like the other solver)
+        Vector3 hipGuide = NormalizeSafe(hipRot * Vector3.right);
+        Vector3 headGuide = NormalizeSafe(headRot * Vector3.right);
+        Vector3 guide = NormalizeSafe(Vector3.Slerp(hipGuide, headGuide, 0.5f));
+
+        float sim = Vector3.Dot(guide, tensionDir);                 // -1..1
+        // We only want near-parallel (positive) and only when very aligned
+        float sim01 = Saturate(Unlerp(0.96f, 1f, Mathf.Clamp(sim, -1f, 1f)));
+
+        float total = awayFromMax * sim01 * gain;
+        if (total <= 0f) return;
+
+        Vector3 delta = tensionDir * total * maxLength * 0.05f;     // 5% of max span scaled by total
+        hip += delta;                                               // nudge hips; we'll relimit below
+        LimitHipHeadDistance(ref hip, ref head, maxLength, headDominates: true);
+    }
+
+    // ---------- Main solver ----------
+    public static void SolveSpineChainWithHips(
+        AnimationStream stream,
 
         // Hips drive
         in BoolProperty enabledHips,
@@ -527,15 +590,22 @@ public static class BasisAnimationRuntimeUtils
         in Vector4Property targetRotationHead,
 
         // IK tuning
-        bool allowRootSlide = true,
         int iterations = 16,
         float twistWeight = 0.25f,
         bool hasChestBendHint = false,
         Vector3 bendHintDir = default,
-        float bendBias = 1f
+        float bendBias = 1f,
+
+        // -------- New optional knobs (ported ideas) --------
+        // If clamped, should we move hips (true) or head (false)?
+        bool headDominatesLimiter = true,
+        // Anti-buckling nudge strength (0..1)
+        float bucklingGain = 0.5f,
+        // Early stop when the head gets sufficiently close to target (world units)
+        float fabrikErrorEpsilon = 1e-4f
     )
     {
-        // ---- 1) Hips write (merged) ------------------------------------------------------
+        // ---- 1) Hips write --------------------------------------------------------------
         if (handleHips.IsValid(stream))
         {
             if (enabledHips.Get(stream))
@@ -543,9 +613,8 @@ public static class BasisAnimationRuntimeUtils
                 Vector3 hipPos = targetPositionHips.Get(stream);
                 Quaternion hipRot = V4ToQuat(targetRotationHips.Get(stream));
                 Quaternion hipOff = V4ToQuat(offsetRotationHips.Get(stream));
-
                 handleHips.SetPosition(stream, hipPos);
-                handleHips.SetRotation(stream, hipRot * hipOff); // apply offset in target space
+                handleHips.SetRotation(stream, hipRot * hipOff); // offset in target space
             }
             else
             {
@@ -553,15 +622,14 @@ public static class BasisAnimationRuntimeUtils
             }
         }
 
-        // ---- 2) Minimal validation for the IK chain -------------------------------------
-        // Required: hips, chest, neck, head
+        // ---- 2) Validate chain ----------------------------------------------------------
         if (!(handleHips.IsValid(stream) &&
               handleChest.IsValid(stream) &&
               handleNeck.IsValid(stream) &&
               handleHead.IsValid(stream)))
         {
-            Pass(stream, handleHips, handleChest, handleHead);
-            PassThrough(stream, handleNeck);
+            BasisAnimationRuntimeUtils.Pass(stream, handleHips, handleChest, handleHead);
+            BasisAnimationRuntimeUtils.PassThrough(stream, handleNeck);
             return;
         }
 
@@ -570,12 +638,13 @@ public static class BasisAnimationRuntimeUtils
             targetPositionHead.Get(stream),
             V4ToQuat(targetRotationHead.Get(stream))
         );
+        Quaternion targetRot = headTarget.rotation;
+        Vector3 targetPos = headTarget.translation;
 
-        // ---- 3) Build compact chain (4..6 links) ----------------------------------------
+        // ---- 3) Compact chain (4..6 links) ----------------------------------------------
         ReadWriteTransformHandle h0 = default, h1 = default, h2 = default,
                                  h3 = default, h4 = default, h5 = default;
         int count = 0;
-
         void Push(ReadWriteTransformHandle h)
         {
             switch (count)
@@ -586,32 +655,26 @@ public static class BasisAnimationRuntimeUtils
                 case 3: h3 = h; break;
                 case 4: h4 = h; break;
                 case 5: h5 = h; break;
-                default: return;
             }
             count++;
         }
-
         Push(handleHips);
         if (handleSpine.IsValid(stream)) Push(handleSpine);
         Push(handleChest);
         if (handleUpperChest.IsValid(stream)) Push(handleUpperChest);
         Push(handleNeck);
         Push(handleHead);
-
         count = Mathf.Clamp(count, 4, 6);
 
-        Vector3 GetPos(int i)
+        Vector3 GetPos(int i) => i switch
         {
-            switch (i)
-            {
-                case 0: return h0.GetPosition(stream);
-                case 1: return h1.GetPosition(stream);
-                case 2: return h2.GetPosition(stream);
-                case 3: return (count > 3) ? h3.GetPosition(stream) : h2.GetPosition(stream);
-                case 4: return (count > 4) ? h4.GetPosition(stream) : h3.GetPosition(stream);
-                default: return (count > 5) ? h5.GetPosition(stream) : h4.GetPosition(stream);
-            }
-        }
+            0 => h0.GetPosition(stream),
+            1 => h1.GetPosition(stream),
+            2 => h2.GetPosition(stream),
+            3 => (count > 3) ? h3.GetPosition(stream) : h2.GetPosition(stream),
+            4 => (count > 4) ? h4.GetPosition(stream) : h3.GetPosition(stream),
+            _ => (count > 5) ? h5.GetPosition(stream) : h4.GetPosition(stream),
+        };
         void SetPos(int i, Vector3 p)
         {
             switch (i)
@@ -624,18 +687,15 @@ public static class BasisAnimationRuntimeUtils
                 case 5: if (count > 5) h5.SetPosition(stream, p); break;
             }
         }
-        Quaternion GetRot(int i)
+        Quaternion GetRot(int i) => i switch
         {
-            switch (i)
-            {
-                case 0: return h0.GetRotation(stream);
-                case 1: return h1.GetRotation(stream);
-                case 2: return h2.GetRotation(stream);
-                case 3: return (count > 3) ? h3.GetRotation(stream) : h2.GetRotation(stream);
-                case 4: return (count > 4) ? h4.GetRotation(stream) : h3.GetRotation(stream);
-                default: return (count > 5) ? h5.GetRotation(stream) : h4.GetRotation(stream);
-            }
-        }
+            0 => h0.GetRotation(stream),
+            1 => h1.GetRotation(stream),
+            2 => h2.GetRotation(stream),
+            3 => (count > 3) ? h3.GetRotation(stream) : h2.GetRotation(stream),
+            4 => (count > 4) ? h4.GetRotation(stream) : h3.GetRotation(stream),
+            _ => (count > 5) ? h5.GetRotation(stream) : h4.GetRotation(stream),
+        };
         void SetRot(int i, Quaternion q)
         {
             switch (i)
@@ -649,7 +709,7 @@ public static class BasisAnimationRuntimeUtils
             }
         }
 
-        // ---- 4) Read positions, lengths, guard rails ------------------------------------
+        // ---- 4) Read positions/lengths --------------------------------------------------
         Vector3 p0 = GetPos(0), p1 = GetPos(1), p2 = GetPos(2);
         Vector3 p3 = (count > 3) ? GetPos(3) : p2;
         Vector3 p4 = (count > 4) ? GetPos(4) : p3;
@@ -671,14 +731,26 @@ public static class BasisAnimationRuntimeUtils
             return;
         }
 
-        Quaternion targetRot = headTarget.rotation;
-        Vector3 targetPos = headTarget.translation;
+        // --- 4a) Hip↔Head limiter & anti-buckling (new) ---------------------------------
+        // If no explicit max provided, you can derive a conservative one from the chain:
+        float chainSum = L0 + L1 + L2 + L3 + L4;
+        // We need current hip/hHead; “head” is the target, hips are p0.
+        LimitHipHeadDistance(ref p0, ref targetPos, chainSum, headDominatesLimiter);
+
+        // Anti-buckling nudge (uses current hip/head orientations)
+        Quaternion hipNowRot = GetRot(0);
+        ApplyBucklingTension(ref p0, ref targetPos, hipNowRot, targetRot, chainSum, bucklingGain);
+
+        // Write back hip if we moved it (so stream drives subsequent reads consistently)
+        SetPos(0, p0);
 
         // ---- 5) FABRIK -------------------------------------------------------------------
         int iters = Mathf.Max(1, iterations);
+        float eps = Mathf.Max(1e-7f, fabrikErrorEpsilon);
+
         for (int it = 0; it < iters; it++)
         {
-            // Backward
+            // Backward: set end effector to (possibly limited) targetPos
             switch (count)
             {
                 case 6:
@@ -704,16 +776,16 @@ public static class BasisAnimationRuntimeUtils
                     break;
             }
 
-            // Bend plane bias (optional)
+            // Bend plane hint (optional)
             if (hasChestBendHint && bendBias > 0f)
             {
                 float bias = Mathf.Clamp01(bendBias);
                 Vector3 end = (count == 6) ? p5 : (count == 5) ? p4 : p3;
-                Vector3 axis = NormalizeSafe(end - p0);
+                Vector3 axis = NormalizeSafe(end - p0, Vector3.forward);
 
                 Vector3 n = Vector3.Cross(axis, bendHintDir);
                 if (n.sqrMagnitude < 1e-8f) n = Vector3.Cross(axis, Vector3.up);
-                n = NormalizeSafe(n);
+                n = NormalizeSafe(n, Vector3.up);
 
                 if (count >= 4)
                 {
@@ -723,9 +795,6 @@ public static class BasisAnimationRuntimeUtils
                     if (count > 4) p4 = Vector3.Lerp(p4, ProjectPointOnPlane(p4, p0, n), bias * 1.0f);
                 }
             }
-
-            // Forward (pin or slide root)
-            if (!allowRootSlide) p0 = o0;
 
             switch (count)
             {
@@ -748,6 +817,10 @@ public static class BasisAnimationRuntimeUtils
                     p3 = p2 + NormalizeSafe(p3 - p2) * L2;
                     break;
             }
+
+            // --- Early-out (new) ---
+            Vector3 eff = (count == 6) ? p5 : (count == 5) ? p4 : p3;
+            if ((eff - targetPos).sqrMagnitude <= eps * eps) break;
         }
 
         // Write positions back
@@ -756,7 +829,7 @@ public static class BasisAnimationRuntimeUtils
         if (count > 4) SetPos(4, p4);
         if (count > 5) SetPos(5, p5);
 
-        // ---- 6) Minimal swing: orient each joint toward its child; head to target rot ---
+        // ---- 6) Minimal swing toward child; head = target rot ---------------------------
         void FaceChild(int i, Vector3 oldA, Vector3 oldB, Vector3 newA, Vector3 newB)
         {
             Vector3 vOld = oldB - oldA;
@@ -791,13 +864,15 @@ public static class BasisAnimationRuntimeUtils
             SetRot(3, targetRot);
         }
 
-        // ---- 7) Twist distribution from head target down the chain ----------------------
+        // ---- 7) Twist distribution (kept simple, safer weights) -------------------------
         float tWeight = Mathf.Clamp01(twistWeight);
         if (tWeight > 0f)
         {
-            Quaternion headNow = (count == 6) ? GetRot(5) : (count == 5) ? GetRot(4) : GetRot(3);
+            int headIdx = (count == 6) ? 5 : (count == 5) ? 4 : 3;
+            Quaternion headNow = GetRot(headIdx);
             Quaternion twistDelta = targetRot * Quaternion.Inverse(headNow);
 
+            // conservative falloff
             float wNeck = 0.45f * tWeight;
             float wUp = 0.30f * tWeight;
             float wChest = 0.18f * tWeight;
@@ -805,21 +880,21 @@ public static class BasisAnimationRuntimeUtils
 
             if (count == 6)
             {
-                SetRot(4, Quaternion.Slerp(Quaternion.identity, twistDelta, wNeck) * GetRot(4));
-                SetRot(3, Quaternion.Slerp(Quaternion.identity, twistDelta, wUp) * GetRot(3));
-                SetRot(2, Quaternion.Slerp(Quaternion.identity, twistDelta, wChest) * GetRot(2));
-                SetRot(1, Quaternion.Slerp(Quaternion.identity, twistDelta, wSpine) * GetRot(1));
+                SetRot(4, Quaternion.SlerpUnclamped(Quaternion.identity, twistDelta, wNeck) * GetRot(4));
+                SetRot(3, Quaternion.SlerpUnclamped(Quaternion.identity, twistDelta, wUp) * GetRot(3));
+                SetRot(2, Quaternion.SlerpUnclamped(Quaternion.identity, twistDelta, wChest) * GetRot(2));
+                SetRot(1, Quaternion.SlerpUnclamped(Quaternion.identity, twistDelta, wSpine) * GetRot(1));
             }
             else if (count == 5)
             {
-                SetRot(3, Quaternion.Slerp(Quaternion.identity, twistDelta, wNeck + 0.08f) * GetRot(3));
-                SetRot(2, Quaternion.Slerp(Quaternion.identity, twistDelta, wUp + 0.05f) * GetRot(2));
-                SetRot(1, Quaternion.Slerp(Quaternion.identity, twistDelta, wChest) * GetRot(1));
+                SetRot(3, Quaternion.SlerpUnclamped(Quaternion.identity, twistDelta, wNeck + 0.08f) * GetRot(3));
+                SetRot(2, Quaternion.SlerpUnclamped(Quaternion.identity, twistDelta, wUp + 0.05f) * GetRot(2));
+                SetRot(1, Quaternion.SlerpUnclamped(Quaternion.identity, twistDelta, wChest) * GetRot(1));
             }
             else // 4
             {
-                SetRot(2, Quaternion.Slerp(Quaternion.identity, twistDelta, wNeck + 0.15f) * GetRot(2));
-                SetRot(1, Quaternion.Slerp(Quaternion.identity, twistDelta, wUp + 0.10f) * GetRot(1));
+                SetRot(2, Quaternion.SlerpUnclamped(Quaternion.identity, twistDelta, wNeck + 0.15f) * GetRot(2));
+                SetRot(1, Quaternion.SlerpUnclamped(Quaternion.identity, twistDelta, wUp + 0.10f) * GetRot(1));
             }
         }
     }

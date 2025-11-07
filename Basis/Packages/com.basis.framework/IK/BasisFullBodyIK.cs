@@ -725,7 +725,7 @@ chestRadius, collisionSkin;
             BasisAnimationRuntimeUtils.SolveSpineChainWithHips(stream,in enabledHips,in HandleHips,
                 in targetPositionHips,in targetRotationHips,in offsetRotationHips,
      HandleChest, HandleNeck, HandleHead, HandleSpine, HandleUpperChest,
-     in targetPositionHead, in targetRotationHead,true, 16, 0.1f, false, Vector3.zero,0);
+     in targetPositionHead, in targetRotationHead);
 
             BasisAnimationRuntimeUtils.SolveLeg(stream, enabledLeftLowerLeg, HandleLeftUpperLeg, HandleLeftLowerLeg, HandleLeftFoot,
                 targetPositionLeftLowerLeg, targetRotationLeftLowerLeg, hintPositionLeftLowerLeg, hintRotationLeftLowerLeg,
