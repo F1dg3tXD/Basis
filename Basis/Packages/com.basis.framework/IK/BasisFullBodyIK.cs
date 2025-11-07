@@ -725,22 +725,25 @@ chestRadius, collisionSkin;
 
             // --- Hips minimal driver ---
             if (enabledHips.Get(stream) && HandleHips.IsValid(stream))
-            {
-                Vector3 hipPos = targetPositionHips.Get(stream);
+             {
+              Vector3 hipPos = targetPositionHips.Get(stream);
                 Quaternion hipRot = V4ToQuat(targetRotationHips.Get(stream));
-                Quaternion hipOff = V4ToQuat(offsetRotationHips.Get(stream));
-                HandleHips.SetPosition(stream, hipPos);
-                HandleHips.SetRotation(stream, hipRot * hipOff); // apply offset in target space
-            }
-            else if (HandleHips.IsValid(stream))
-            {
-                BasisAnimationRuntimeUtils.PassThrough(stream, HandleHips);
-            }
+               Quaternion hipOff = V4ToQuat(offsetRotationHips.Get(stream));
+              HandleHips.SetPosition(stream, hipPos);
+             HandleHips.SetRotation(stream, hipRot * hipOff); // apply offset in target space
+               }
+              else if (HandleHips.IsValid(stream))
+              {
+                  BasisAnimationRuntimeUtils.PassThrough(stream, HandleHips);
+              }
 
             // --- Head + Legs (classic TwoBone) ---
-            BasisAnimationRuntimeUtils.SolveOne(stream, enabledHead, HandleChest, HandleNeck, HandleHead,
-                targetPositionHead, targetRotationHead, hintPositionHead, hintRotationHead,
-                hintWeightHead, targetOffsetHead, bendNormalHead);
+            // BasisAnimationRuntimeUtils.SolveOne(stream, enabledHead, HandleChest, HandleNeck, HandleHead,
+            //    targetPositionHead, targetRotationHead, hintPositionHead, hintRotationHead,
+            //   hintWeightHead, targetOffsetHead, bendNormalHead);
+
+
+            BasisAnimationRuntimeUtils.SolveSpineChain(stream, HandleHips, HandleChest, HandleNeck, HandleHead, HandleSpine, HandleUpperChest, new AffineTransform(targetPositionHead.Get(stream), V4ToQuat(targetRotationHead.Get(stream))), true, 16, 0.25f, false, Vector3.zero, 1);
 
             BasisAnimationRuntimeUtils.SolveOne(stream, enabledLeftLowerLeg, HandleLeftUpperLeg, HandleLeftLowerLeg, HandleLeftFoot,
                 targetPositionLeftLowerLeg, targetRotationLeftLowerLeg, hintPositionLeftLowerLeg, hintRotationLeftLowerLeg,

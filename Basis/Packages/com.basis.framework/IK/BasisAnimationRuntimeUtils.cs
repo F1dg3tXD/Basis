@@ -480,8 +480,369 @@ public static class BasisAnimationRuntimeUtils
         }
     }
 
-    internal static void Apply(AnimationStream stream, object handleSpine, Vector3Property p7, Vector4Property r7, Vector4Property o7, BoolProperty w7)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static Vector3 NormalizeSafe(Vector3 v)
     {
-        throw new NotImplementedException();
+        float m2 = Vector3.Dot(v, v);
+        if (m2 <= 1e-12f) return Vector3.forward;
+        return v / Mathf.Sqrt(m2);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static Vector3 ProjectPointOnPlane(Vector3 point, Vector3 planePoint, Vector3 planeNormal)
+    {
+        // plane: (x - planePoint)·n = 0
+        float d = Vector3.Dot(point - planePoint, planeNormal);
+        return point - planeNormal * d;
+    }
+
+    /// <summary>
+    /// Spine IK that tolerates missing spine/upperChest links.
+    /// Active chain becomes: hips -> [spine?] -> chest -> [upperChest?] -> neck -> head
+    /// Root can be pinned. Head matches target position; twist is distributed down the chain.
+    /// Optional bend hint (usually chest forward) biases the chain into a plane.
+    /// </summary>
+    public static void SolveSpineChain(
+        AnimationStream stream,
+        // Required root & end:
+        ReadWriteTransformHandle hips,
+        ReadWriteTransformHandle chest,
+        ReadWriteTransformHandle neck,
+        ReadWriteTransformHandle head,
+        // Optional middles (may be invalid in the stream):
+        ReadWriteTransformHandle spine,         // optional
+        ReadWriteTransformHandle upperChest,    // optional
+                                                // Target & params
+        AffineTransform headTarget,
+        bool allowRootSlide,
+        int iterations,
+        float twistWeight,          // 0..1
+        bool hasChestBendHint,      // if true, use bendHintDir
+        Vector3 bendHintDir,        // world-space (e.g., chest forward)
+        float bendBias              // 0..1 how strongly to bias toward bend plane
+    )
+    {
+        // Validate minimally required joints
+        if (!(hips.IsValid(stream) && chest.IsValid(stream) && neck.IsValid(stream) && head.IsValid(stream)))
+        {
+            // Not enough to solve a spine; pass through gracefully
+            Pass(stream, hips, chest, head);
+            PassThrough(stream, neck);
+            return;
+        }
+
+        // ---- Build compacted chain in order without allocations ----
+        // Handles h0..h5 (max 6 joints). We always include hips, chest, neck, head; optionally spine, upperChest.
+        ReadWriteTransformHandle h0 = hips;
+        ReadWriteTransformHandle h1, h2, h3, h4, h5;
+        int count = 0;
+
+        // We’ll push joints sequentially
+        ReadWriteTransformHandle a0 = hips;
+        ReadWriteTransformHandle a1 = spine.IsValid(stream) ? spine : chest; // If spine missing, chest takes slot 1
+        ReadWriteTransformHandle a2, a3, a4, a5;
+
+        if (spine.IsValid(stream))
+        {
+            // chain: hips(0) -> spine(1) -> chest(?)
+            a2 = chest;
+        }
+        else
+        {
+            // chain: hips(0) -> chest(1)
+            a2 = neck; // we’ll overwrite below if upperChest is valid
+        }
+
+        // Decide remaining based on which of spine/upperChest exist
+        if (spine.IsValid(stream))
+        {
+            if (upperChest.IsValid(stream))
+            {
+                // hips, spine, chest, upperChest, neck, head
+                a3 = upperChest; a4 = neck; a5 = head;
+            }
+            else
+            {
+                // hips, spine, chest, neck, head
+                a3 = neck; a4 = head; a5 = head; // a5 dummy; will be ignored
+            }
+        }
+        else
+        {
+            if (upperChest.IsValid(stream))
+            {
+                // hips, chest, upperChest, neck, head
+                a2 = chest; a3 = upperChest; a4 = neck; a5 = head;
+            }
+            else
+            {
+                // hips, chest, neck, head
+                a2 = chest; a3 = neck; a4 = head; a5 = head; // a5 dummy
+            }
+        }
+
+        // Now compact into h0..hN-1 uniquely and compute count
+        h0 = a0; count = 1;
+
+        void Push(ref ReadWriteTransformHandle slot, ReadWriteTransformHandle handle)
+        {
+            if (!handle.Equals(h0) && (count == 0 || !handle.Equals(slot)))
+            {
+                switch (count)
+                {
+                    case 1: h1 = handle; break;
+                    case 2: h2 = handle; break;
+                    case 3: h3 = handle; break;
+                    case 4: h4 = handle; break;
+                    case 5: h5 = handle; break;
+                    default: return;
+                }
+                count++;
+            }
+        }
+
+        // Initialize to avoid CS0165 (will overwrite through Push)
+        h1 = h2 = h3 = h4 = h5 = hips;
+
+        // Push in order, skipping duplicates that might have happened in “missing link” branches
+        Push(ref h1, a1);
+        Push(ref h2, a2);
+        Push(ref h3, a3);
+        if (a4.GetHashCode() != a3.GetHashCode()) Push(ref h4, a4);
+        if (a5.GetHashCode() != a4.GetHashCode() && a5.GetHashCode() != a3.GetHashCode()) Push(ref h5, a5);
+
+        // Clamp count [4..6]
+        count = Mathf.Clamp(count, 4, 6);
+
+        // Utility accessors by index
+        Vector3 GetPos(int i)
+        {
+            switch (i)
+            {
+                case 0: return h0.GetPosition(stream);
+                case 1: return h1.GetPosition(stream);
+                case 2: return h2.GetPosition(stream);
+                case 3: return (count > 3) ? h3.GetPosition(stream) : h2.GetPosition(stream);
+                case 4: return (count > 4) ? h4.GetPosition(stream) : h3.GetPosition(stream);
+                default: return (count > 5) ? h5.GetPosition(stream) : h4.GetPosition(stream);
+            }
+        }
+        void SetPos(int i, Vector3 p)
+        {
+            switch (i)
+            {
+                case 0: h0.SetPosition(stream, p); break;
+                case 1: h1.SetPosition(stream, p); break;
+                case 2: h2.SetPosition(stream, p); break;
+                case 3: if (count > 3) h3.SetPosition(stream, p); break;
+                case 4: if (count > 4) h4.SetPosition(stream, p); break;
+                case 5: if (count > 5) h5.SetPosition(stream, p); break;
+            }
+        }
+        Quaternion GetRot(int i)
+        {
+            switch (i)
+            {
+                case 0: return h0.GetRotation(stream);
+                case 1: return h1.GetRotation(stream);
+                case 2: return h2.GetRotation(stream);
+                case 3: return (count > 3) ? h3.GetRotation(stream) : h2.GetRotation(stream);
+                case 4: return (count > 4) ? h4.GetRotation(stream) : h3.GetRotation(stream);
+                default: return (count > 5) ? h5.GetRotation(stream) : h4.GetRotation(stream);
+            }
+        }
+        void SetRot(int i, Quaternion q)
+        {
+            switch (i)
+            {
+                case 0: h0.SetRotation(stream, q); break;
+                case 1: h1.SetRotation(stream, q); break;
+                case 2: h2.SetRotation(stream, q); break;
+                case 3: if (count > 3) h3.SetRotation(stream, q); break;
+                case 4: if (count > 4) h4.SetRotation(stream, q); break;
+                case 5: if (count > 5) h5.SetRotation(stream, q); break;
+            }
+        }
+
+        // Read positions & originals
+        Vector3 p0 = GetPos(0), p1 = GetPos(1), p2 = GetPos(2);
+        Vector3 p3 = (count > 3) ? GetPos(3) : p2;
+        Vector3 p4 = (count > 4) ? GetPos(4) : p3;
+        Vector3 p5 = (count > 5) ? GetPos(5) : p4;
+
+        Vector3 o0 = p0, o1 = p1, o2 = p2, o3 = p3, o4 = p4, o5 = p5;
+
+        // Segment lengths (count-1 segments)
+        float L0 = (p1 - p0).magnitude;
+        float L1 = (p2 - p1).magnitude;
+        float L2 = (count > 3) ? (p3 - p2).magnitude : 0f;
+        float L3 = (count > 4) ? (p4 - p3).magnitude : 0f;
+        float L4 = (count > 5) ? (p5 - p4).magnitude : 0f;
+
+        // Validate lengths
+        if (L0 <= 1e-7f || L1 <= 1e-7f || (count > 3 && L2 <= 1e-7f) || (count > 4 && L3 <= 1e-7f) || (count > 5 && L4 <= 1e-7f))
+        {
+            // Avoid NaNs
+            for (int i = 0; i < count; i++) SetPos(i, GetPos(i));
+            return;
+        }
+
+        Quaternion targetRot = headTarget.rotation;
+        Vector3 targetPos = headTarget.translation;
+
+        // ---- FABRIK iterations ----
+        int iters = Mathf.Max(1, iterations);
+        for (int it = 0; it < iters; it++)
+        {
+            // Backward: set end to target, pull back
+            switch (count)
+            {
+                case 6:
+                    p5 = targetPos;
+                    p4 = p5 + NormalizeSafe(p4 - p5) * L4;
+                    p3 = p4 + NormalizeSafe(p3 - p4) * L3;
+                    p2 = p3 + NormalizeSafe(p2 - p3) * L2;
+                    p1 = p2 + NormalizeSafe(p1 - p2) * L1;
+                    p0 = p1 + NormalizeSafe(p0 - p1) * L0;
+                    break;
+                case 5:
+                    p4 = targetPos;
+                    p3 = p4 + NormalizeSafe(p3 - p4) * L3;
+                    p2 = p3 + NormalizeSafe(p2 - p3) * L2;
+                    p1 = p2 + NormalizeSafe(p1 - p2) * L1;
+                    p0 = p1 + NormalizeSafe(p0 - p1) * L0;
+                    break;
+                default: // 4
+                    p3 = targetPos;
+                    p2 = p3 + NormalizeSafe(p2 - p3) * L2; // note: in 4-link, L2 is (p3-p2) length; we repurpose vars below
+                    p1 = p2 + NormalizeSafe(p1 - p2) * L1;
+                    p0 = p1 + NormalizeSafe(p0 - p1) * L0;
+                    break;
+            }
+
+            // Bend plane bias (optional). We bias interior joints toward a plane defined by axis & bendHintDir.
+            if (hasChestBendHint && bendBias > 0f)
+            {
+                float bias = Mathf.Clamp01(bendBias);
+                // axis root->end after backward
+                Vector3 end = (count == 6) ? p5 : (count == 5) ? p4 : p3;
+                Vector3 axis = NormalizeSafe(end - p0);
+                // Plane normal from axis and hint dir (if parallel, fallback to up)
+                Vector3 n = Vector3.Cross(axis, bendHintDir);
+                if (n.sqrMagnitude < 1e-8f) n = Vector3.Cross(axis, Vector3.up);
+                n = NormalizeSafe(n);
+
+                // Project interior joints (excluding root & end) toward the plane through root with normal n
+                if (count >= 4)
+                {
+                    p1 = Vector3.Lerp(p1, ProjectPointOnPlane(p1, p0, n), bias * 0.5f);
+                    p2 = Vector3.Lerp(p2, ProjectPointOnPlane(p2, p0, n), bias * 0.7f);
+                    if (count > 3) p3 = Vector3.Lerp(p3, ProjectPointOnPlane(p3, p0, n), bias * 0.9f);
+                    if (count > 4) p4 = Vector3.Lerp(p4, ProjectPointOnPlane(p4, p0, n), bias * 1.0f);
+                }
+            }
+
+            // Forward: pin/move root, push forward
+            if (!allowRootSlide) p0 = o0;
+
+            switch (count)
+            {
+                case 6:
+                    p1 = p0 + NormalizeSafe(p1 - p0) * L0;
+                    p2 = p1 + NormalizeSafe(p2 - p1) * L1;
+                    p3 = p2 + NormalizeSafe(p3 - p2) * L2;
+                    p4 = p3 + NormalizeSafe(p4 - p3) * L3;
+                    p5 = p4 + NormalizeSafe(p5 - p4) * L4;
+                    break;
+                case 5:
+                    p1 = p0 + NormalizeSafe(p1 - p0) * L0;
+                    p2 = p1 + NormalizeSafe(p2 - p1) * L1;
+                    p3 = p2 + NormalizeSafe(p3 - p2) * L2;
+                    p4 = p3 + NormalizeSafe(p4 - p3) * L3;
+                    break;
+                default: // 4
+                    p1 = p0 + NormalizeSafe(p1 - p0) * L0;
+                    p2 = p1 + NormalizeSafe(p2 - p1) * L1;
+                    p3 = p2 + NormalizeSafe(p3 - p2) * L2;
+                    break;
+            }
+        }
+
+        // Write positions back
+        SetPos(0, p0); SetPos(1, p1); SetPos(2, p2);
+        if (count > 3) SetPos(3, p3);
+        if (count > 4) SetPos(4, p4);
+        if (count > 5) SetPos(5, p5);
+
+        // Orient each joint to face its child (minimal swing; twist handled next)
+        void FaceChild(int i, Vector3 oldA, Vector3 oldB, Vector3 newA, Vector3 newB)
+        {
+            Vector3 vOld = oldB - oldA;
+            Vector3 vNew = newB - newA;
+            if (vOld.sqrMagnitude <= 1e-12f || vNew.sqrMagnitude <= 1e-12f) return;
+            Quaternion delta = QuaternionExt.FromToRotation(vOld, vNew);
+            SetRot(i, delta * GetRot(i));
+        }
+
+        if (count == 6)
+        {
+            FaceChild(0, o0, o1, p0, p1);
+            FaceChild(1, o1, o2, p1, p2);
+            FaceChild(2, o2, o3, p2, p3);
+            FaceChild(3, o3, o4, p3, p4);
+            FaceChild(4, o4, o5, p4, p5);
+            // Head rotation: match target
+            SetRot(5, headTarget.rotation);
+        }
+        else if (count == 5)
+        {
+            FaceChild(0, o0, o1, p0, p1);
+            FaceChild(1, o1, o2, p1, p2);
+            FaceChild(2, o2, o3, p2, p3);
+            FaceChild(3, o3, o4, p3, p4);
+            SetRot(4, headTarget.rotation);
+        }
+        else // 4
+        {
+            FaceChild(0, o0, o1, p0, p1);
+            FaceChild(1, o1, o2, p1, p2);
+            FaceChild(2, o2, o3, p2, p3);
+            SetRot(3, headTarget.rotation);
+        }
+
+        // Distribute twist from head target down the chain
+        float tWeight = Mathf.Clamp01(twistWeight);
+        if (tWeight > 0f)
+        {
+            // Compare current head rot vs desired
+            Quaternion headNow = (count == 6) ? GetRot(5) : (count == 5) ? GetRot(4) : GetRot(3);
+            Quaternion twistDelta = headTarget.rotation * Quaternion.Inverse(headNow);
+
+            // Spread most near the neck; taper toward hips.
+            // We only smear a portion 'tWeight' of the delta.
+            float wNeck = 0.45f * tWeight;
+            float wUp = 0.30f * tWeight;
+            float wChest = 0.18f * tWeight;
+            float wSpine = 0.07f * tWeight;
+
+            if (count == 6)
+            {
+                SetRot(4, Quaternion.Slerp(Quaternion.identity, twistDelta, wNeck) * GetRot(4));
+                SetRot(3, Quaternion.Slerp(Quaternion.identity, twistDelta, wUp) * GetRot(3));
+                SetRot(2, Quaternion.Slerp(Quaternion.identity, twistDelta, wChest) * GetRot(2));
+                SetRot(1, Quaternion.Slerp(Quaternion.identity, twistDelta, wSpine) * GetRot(1));
+            }
+            else if (count == 5)
+            {
+                SetRot(3, Quaternion.Slerp(Quaternion.identity, twistDelta, wNeck + 0.08f) * GetRot(3));
+                SetRot(2, Quaternion.Slerp(Quaternion.identity, twistDelta, wUp + 0.05f) * GetRot(2));
+                SetRot(1, Quaternion.Slerp(Quaternion.identity, twistDelta, wChest) * GetRot(1));
+            }
+            else // 4
+            {
+                SetRot(2, Quaternion.Slerp(Quaternion.identity, twistDelta, wNeck + 0.15f) * GetRot(2));
+                SetRot(1, Quaternion.Slerp(Quaternion.identity, twistDelta, wUp + 0.10f) * GetRot(1));
+            }
+        }
     }
 }
