@@ -27,6 +27,8 @@ namespace Basis.Scripts.Drivers
         /// <summary>Main camera used for local rendering.</summary>
         public Camera Camera;
 
+        public Camera OverlayCamera;
+
         /// <summary>Cached instance ID of <see cref="Camera"/> used to gate callbacks.</summary>
         public static int CameraInstanceID;
 
@@ -170,6 +172,8 @@ namespace Basis.Scripts.Drivers
             }
             Camera.nearClipPlane = NearClip;
             Camera.farClipPlane = 1500;
+            OverlayCamera.nearClipPlane = NearClip;
+            OverlayCamera.farClipPlane = 1500;
             CameraInstanceID = Camera.GetInstanceID();
 
             // Set initial scale from player height
@@ -249,6 +253,7 @@ namespace Basis.Scripts.Drivers
             if (mode == BasisConstants.Desktop)
             {
                 Camera.fieldOfView = DefaultCameraFov;
+                OverlayCamera.fieldOfView = DefaultCameraFov;
             }
             OnHeightChanged();
         }

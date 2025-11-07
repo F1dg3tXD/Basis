@@ -8,6 +8,7 @@ public class SMModuleFOVSettings : BasisSettingsBase
         if (BasisDeviceManagement.IsUserInDesktop())
         {
             BasisLocalCameraDriver.Instance.Camera.fieldOfView = SelectedFOV;
+            BasisLocalCameraDriver.Instance.OverlayCamera.fieldOfView = SelectedFOV;
         }
     }
 

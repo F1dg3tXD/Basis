@@ -1,5 +1,133 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &624330861155751987
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2207284723099037483}
+  - component: {fileID: 1587555740188177018}
+  - component: {fileID: 7914544507322444841}
+  m_Layer: 9
+  m_Name: Overlay Camera
+  m_TagString: Player
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2207284723099037483
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 624330861155751987}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3672764920634616510}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!20 &1587555740188177018
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 624330861155751987}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 4
+  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.01
+  far clip plane: 1000
+  field of view: 80
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: -1
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 512
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!114 &7914544507322444841
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 624330861155751987}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_RenderShadows: 0
+  m_RequiresDepthTextureOption: 0
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 1
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 2
+  m_AntialiasingQuality: 2
+  m_StopNaN: 1
+  m_Dithering: 0
+  m_ClearDepth: 0
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
 --- !u!1 &3531126797157254344
 GameObject:
   m_ObjectHideFlags: 0
@@ -10,7 +138,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2290955745392714449}
   - component: {fileID: 8202654958605531215}
-  m_Layer: 5
+  m_Layer: 9
   m_Name: Microphone
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -99,7 +227,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7984352310526030848}
-  m_Layer: 5
+  m_Layer: 9
   m_Name: Parent OF UI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -160,6 +288,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 2207284723099037483}
   - {fileID: 7984352310526030848}
   m_Father: {fileID: 303201899784742928}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -238,7 +367,8 @@ MonoBehaviour:
   m_RequiresDepthTextureOption: 2
   m_RequiresOpaqueTextureOption: 2
   m_CameraType: 0
-  m_Cameras: []
+  m_Cameras:
+  - {fileID: 1587555740188177018}
   m_RendererIndex: -1
   m_VolumeLayerMask:
     serializedVersion: 2
@@ -308,6 +438,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Camera: {fileID: 2190344443764046154}
+  OverlayCamera: {fileID: 1587555740188177018}
   Listener: {fileID: 6523320673415141539}
   CameraData: {fileID: 1575369440390904304}
   SteamAudioListener: {fileID: 3245914674684743984}
@@ -566,6 +697,7 @@ MonoBehaviour:
     blendShapeIndex: 
     blendShapeCount: 0
     LinkedPlayer: {fileID: 0}
+    MeshblendShapeCount: 0
   LocalCameraDriver: {fileID: 22857711927985140}
   LocalBoneDriver:
     ControlsLength: 0
@@ -582,60 +714,15 @@ MonoBehaviour:
     MinCutoff: 5.5
     Beta: 3.25
     DerivativeCutoff: 3
-    SpineIK: {fileID: 0}
-    LeftFootTwoBoneIK: {fileID: 0}
-    RightFootTwoBoneIK: {fileID: 0}
-    LeftHandTwoBoneIK: {fileID: 0}
-    RightHandTwoBoneIK: {fileID: 0}
-    UpperChestTwoBoneIK: {fileID: 0}
-    LeftToeConstraint: {fileID: 0}
-    RightToeConstraint: {fileID: 0}
-    LeftToeRig: {fileID: 0}
-    RightToeRig: {fileID: 0}
-    HeadRig: {fileID: 0}
-    SpineRig: {fileID: 0}
-    LeftHandRig: {fileID: 0}
-    RightHandRig: {fileID: 0}
-    LeftFootRig: {fileID: 0}
-    RightFootRig: {fileID: 0}
-    LeftShoulderRig: {fileID: 0}
-    RightShoulderRig: {fileID: 0}
-    LeftHandLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    RightHandLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    LeftFootLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    RightFootLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    LeftToeLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    RightToeLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    RigSpineLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    RigChainSpineLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    HeadLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    LeftShoulderLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    RightShoulderLayer:
-      m_Rig: {fileID: 0}
-      m_Active: 0
-    Rigs: []
     Builder: {fileID: 0}
     AdditionalTransforms: []
+    HumanBones: 
+    isActive: 
+    MainRig: {fileID: 0}
+    RigLayer:
+      m_Rig: {fileID: 0}
+      m_Active: 0
+    BasisFullIKConstraint: {fileID: 0}
   LocalCharacterDriver:
     LocalPlayer: {fileID: 4587526044252889482}
     characterController: {fileID: 5548795088377030369}
@@ -664,6 +751,7 @@ MonoBehaviour:
     <MovementSpeedScale>k__BackingField: 0
     <MovementSpeedBoost>k__BackingField: 0
     CrouchBlend: 1
+    CrouchBlendDelta: 0
     BasisLocalPlayerTransform: {fileID: 0}
     IsEnabled: 1
     CurrentSpeed: 0
@@ -966,14 +1054,6 @@ MonoBehaviour:
     AvatarArmSpan: 1.7
     CustomPlayerEyeHeight: 1.7
     CustomAvatarEyeHeight: 1.7
-    EyeRatioPlayerToDefaultScale: 1
-    EyeRatioAvatarToAvatarDefaultScale: 1
-    ArmRatioPlayerToDefaultScale: 1
-    ArmRatioAvatarToAvatarDefaultScale: 1
-    SelectedPlayerHeight: 1.7
-    SelectedAvatarHeight: 1.7
-    SelectedPlayerToDefaultScale: 1
-    SelectedAvatarToAvatarDefaultScale: 1
 --- !u!143 &5548795088377030369
 CharacterController:
   m_ObjectHideFlags: 0
